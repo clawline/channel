@@ -8,15 +8,15 @@
 
 ### 概述
 
-Generic Channel 已经支持 OpenClaw 主动发送 DM 消息。这意味着 OpenClaw 可以在没有收到用户消息的情况下，主动向已连接的客户端发送消息。
+Clawline 已经支持 OpenClaw 主动发送 DM 消息。这意味着 OpenClaw 可以在没有收到用户消息的情况下，主动向已连接的客户端发送消息。
 
 这里的主前提仍然是当前接入走 `websocket`，并且目标客户端处于在线连接状态。
 
 ### 工作原理
 
-Generic Channel 通过以下机制支持主动 DM：
+Clawline 通过以下机制支持主动 DM：
 
-1. **ChannelOutboundAdapter**：Generic Channel 实现了 OpenClaw 的 `ChannelOutboundAdapter` 接口
+1. **ChannelOutboundAdapter**：Clawline 实现了 OpenClaw 的 `ChannelOutboundAdapter` 接口
 2. **WebSocket 连接池**：维护所有已连接客户端的 WebSocket 连接
 3. **消息路由**：通过 `sendMessageGeneric` 函数将消息路由到指定的 `chatId`
 
@@ -112,7 +112,7 @@ await sendMediaGeneric({
 
 ### 目标格式 (Target Format)
 
-Generic Channel 支持以下目标格式：
+Clawline 支持以下目标格式：
 
 | 格式 | 说明 | 示例 |
 |------|------|------|
@@ -228,13 +228,13 @@ channels:
 
 ### Overview
 
-Generic Channel already supports OpenClaw proactive DM sending. This means OpenClaw can send messages to connected clients without receiving a message first.
+Clawline already supports OpenClaw proactive DM sending. This means OpenClaw can send messages to connected clients without receiving a message first.
 
 ### How It Works
 
-Generic Channel supports proactive DM through these mechanisms:
+Clawline supports proactive DM through these mechanisms:
 
-1. **ChannelOutboundAdapter**: Generic Channel implements OpenClaw's `ChannelOutboundAdapter` interface
+1. **ChannelOutboundAdapter**: Clawline implements OpenClaw's `ChannelOutboundAdapter` interface
 2. **WebSocket Connection Pool**: Maintains WebSocket connections for all connected clients
 3. **Message Routing**: Routes messages to specified `chatId` through the `sendMessageGeneric` function
 
@@ -330,7 +330,7 @@ await sendMediaGeneric({
 
 ### Target Format
 
-Generic Channel supports the following target formats:
+Clawline supports the following target formats:
 
 | Format | Description | Example |
 |--------|-------------|---------|

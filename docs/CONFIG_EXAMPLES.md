@@ -1,4 +1,4 @@
-# Generic Channel Configuration Examples
+# Clawline Configuration Examples
 
 ## Quick Start Guide
 
@@ -116,7 +116,7 @@ For real H5 / App / WeChat Mini Program access, read `./INTEGRATION_GUIDE.md` ne
 Add WebSocket connection code to your H5 application:
 
 ```javascript
-// Connect to Generic Channel
+// Connect to Clawline
 const ws = new WebSocket('ws://localhost:8080/ws?chatId=user-123');
 
 ws.onopen = () => {
@@ -297,7 +297,7 @@ Why this baseline:
    ```bash
    openclaw gateway restart
    ```
-3. Check the logs to verify the Generic Channel started successfully:
+3. Check the logs to verify the Clawline started successfully:
    ```
    [generic] WebSocket server started on port 8080 at path /ws
    ```

@@ -158,7 +158,7 @@ export {
 
 const plugin = {
   id: "clawline",
-  name: "Generic Channel",
+  name: "Clawline",
   description: "Generic WebSocket/Relay/Webhook channel plugin for OpenClaw",
   configSchema: emptyPluginConfigSchema(),
   register(api: OpenClawPluginApi) {

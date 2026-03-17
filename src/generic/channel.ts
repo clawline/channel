@@ -7,7 +7,7 @@ import { sendMessageGeneric } from "./send.js";
 
 const meta = {
   id: "clawline",
-  label: "Generic Channel",
+  label: "Clawline",
   selectionLabel: "Generic Channel (WebSocket/Relay/Webhook)",
   docsPath: "/channels/clawline",
   docsLabel: "clawline",

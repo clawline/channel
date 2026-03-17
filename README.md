@@ -1,7 +1,5 @@
-> ⚠️ **本项目已迁移至 [msdevhub/openclaw-clawline](https://github.com/msdevhub/openclaw-clawline)**，请前往新仓库获取最新代码。本仓库已归档，不再维护。
 
-
-# Generic Channel
+# Clawline
 
 Generic WebSocket/Relay/Webhook channel plugin for [OpenClaw](https://github.com/openclaw/openclaw).
 
@@ -113,7 +111,7 @@ openclaw config set channels.clawline.wsPort 8080
 
 ### Quick Start
 
-1. Enable the Generic Channel:
+1. Enable the Clawline:
 ```bash
 openclaw config set channels.clawline.enabled true
 openclaw config set channels.clawline.connectionMode websocket
@@ -125,7 +123,7 @@ openclaw config set channels.clawline.wsPort 8080
    - Relay client: `ws://relay-host:19080/client?channelId=demo`
 
 3. Open `examples/h5-client.html` in your browser to test the connection
-   - The example page is a static file only. The page opening successfully does **not** mean the Generic Channel WebSocket is reachable yet.
+   - The example page is a static file only. The page opening successfully does **not** mean the Clawline WebSocket is reachable yet.
    - If you use relay mode, put the client endpoint into `serverUrl`, for example `ws://relay-host:19080/client?channelId=demo`.
    - The page stores `serverUrl` / `chatId` / `userName` and connection history in browser `localStorage`; if you previously tested another environment, clear the cached config or reselect the correct history entry before reconnecting.
 
@@ -135,16 +133,16 @@ openclaw config set channels.clawline.wsPort 8080
    - The example page writes the auth token into the `token` query param. If your server uses a custom token param, put it directly into `serverUrl`.
 
 5. For direct H5 / App / WeChat Mini Program integration, see `docs/INTEGRATION_GUIDE.md`
-6. First-time readers should use this order: `README` -> `docs/INTEGRATION_GUIDE.md` -> `docs/CONFIG_EXAMPLES*.md` -> `examples/h5-client.html` -> `src/relay-gateway/README.md`
+6. First-time readers should use this order: `README` -> `docs/INTEGRATION_GUIDE.md` -> `docs/CONFIG_EXAMPLES*.md` -> `examples/h5-client.html` -> `[gateway 仓库](https://github.com/clawline/gateway)`
 
 ### Relay Gateway
 
-`src/relay-gateway/` is a standalone forwarding service for public deployments.
+`[clawline/gateway](https://github.com/clawline/gateway)` is a standalone forwarding service for public deployments.
 
 - Plugin backend connects to `/backend`
 - Third-party clients connect to `/client`
 - `relay-gateway` also provides a simple admin UI for channel/user/token management
-- See `src/relay-gateway/README.md` for environment variables, health checks, and deployment examples
+- See `[gateway 仓库](https://github.com/clawline/gateway)` for environment variables, health checks, and deployment examples
 
 ### Message Protocol
 
@@ -246,7 +244,7 @@ const token = 'gc_alex_xxxxxxxxx';
 const ws = new WebSocket(`ws://localhost:8080/ws?agentId=${encodeURIComponent(selectedAgentId)}&token=${encodeURIComponent(token)}`);
 
 ws.onopen = () => {
-  console.log('Connected to Generic Channel');
+  console.log('Connected to Clawline');
   ws.send(JSON.stringify({
     type: 'agent.list.get',
     data: { requestId: 'agent-list-1' }
@@ -512,7 +510,7 @@ openclaw config set channels.clawline.wsPort 8080
    - 示例页的 token 输入框只会写入 `token` 查询参数。如果你服务端用了自定义 token 参数名，请直接把它写进 `serverUrl`
 
 5. H5 / 聊天 App / 微信小程序的真实接入方式见 `docs/INTEGRATION_GUIDE.md`
-6. 第一次接入建议按 `README -> docs/INTEGRATION_GUIDE.md -> docs/CONFIG_EXAMPLES_ZH.md -> examples/h5-client.html -> src/relay-gateway/README.md` 的顺序阅读
+6. 第一次接入建议按 `README -> docs/INTEGRATION_GUIDE.md -> docs/CONFIG_EXAMPLES_ZH.md -> examples/h5-client.html -> [gateway 仓库](https://github.com/clawline/gateway)` 的顺序阅读
 
 ### 接入说明
 
@@ -534,12 +532,12 @@ openclaw config set channels.clawline.wsPort 8080
 
 ### Relay 网关
 
-`src/relay-gateway/` 是用于公网部署的独立中转服务。
+`[clawline/gateway](https://github.com/clawline/gateway)` 是用于公网部署的独立中转服务。
 
 - 插件主动反连 `/backend`
 - 第三方客户端连接 `/client`
 - `relay-gateway` 还提供一个简单管理页，可维护 channel、用户和 token
-- 环境变量、健康检查和部署示例见 `src/relay-gateway/README.md`
+- 环境变量、健康检查和部署示例见 `[gateway 仓库](https://github.com/clawline/gateway)`
 
 ### 自动语音/音频转写
 

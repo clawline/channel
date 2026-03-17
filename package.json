@@ -17,7 +17,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Restry/clawdbot-clawline.git"
+    "url": "git+https://github.com/clawline/channel.git"
   },
   "keywords": [
     "openclaw",
@@ -34,11 +34,11 @@
     ],
     "channel": {
       "id": "clawline",
-      "label": "Generic Channel",
-      "selectionLabel": "Generic Channel (WebSocket/Relay/Webhook)",
+      "label": "Clawline",
+      "selectionLabel": "Clawline (WebSocket/Relay/Webhook)",
       "docsPath": "/channels/clawline",
       "docsLabel": "clawline",
-      "blurb": "Generic WebSocket/Relay/Webhook channel for H5 pages.",
+      "blurb": "Universal WebSocket/Relay/Webhook channel for connecting any platform.",
       "aliases": [],
       "order": 100
     },
