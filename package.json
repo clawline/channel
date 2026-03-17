@@ -1,0 +1,65 @@
+{
+  "name": "@restry/clawline",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Generic WebSocket/Relay/Webhook channel plugin for OpenClaw",
+  "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "pack:dist": "mkdir -p dist && npm pack --pack-destination dist"
+  },
+  "files": [
+    "index.ts",
+    "src",
+    "examples",
+    "openclaw.plugin.json",
+    "docs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Restry/clawdbot-clawline.git"
+  },
+  "keywords": [
+    "openclaw",
+    "generic",
+    "websocket",
+    "webhook",
+    "chatbot",
+    "ai",
+    "claude"
+  ],
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "channel": {
+      "id": "clawline",
+      "label": "Generic Channel",
+      "selectionLabel": "Generic Channel (WebSocket/Relay/Webhook)",
+      "docsPath": "/channels/clawline",
+      "docsLabel": "clawline",
+      "blurb": "Generic WebSocket/Relay/Webhook channel for H5 pages.",
+      "aliases": [],
+      "order": 100
+    },
+    "install": {
+      "npmSpec": "@restry/clawline",
+      "localPath": ".",
+      "defaultChoice": "npm"
+    }
+  },
+  "dependencies": {
+    "@types/ws": "^8.18.1",
+    "ws": "^8.19.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.10",
+    "openclaw": "2026.1.29",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.1.29"
+  }
+}

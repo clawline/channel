@@ -1,0 +1,2725 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generic Channel - H5 客户端</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 700px;
+            height: 95vh;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .chat-header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .connection-status {
+            font-size: 12px;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .connection-status.connected .status-indicator {
+            background: #4ade80;
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+        }
+
+        .connection-status.disconnected .status-indicator {
+            background: #f87171;
+        }
+
+        .connection-status.reconnecting .status-indicator {
+            background: #fbbf24;
+            animation: pulse 1.5s infinite;
+        }
+
+        .agent-toolbar {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .agent-toolbar label {
+            opacity: 0.9;
+            white-space: nowrap;
+        }
+
+        .agent-toolbar select {
+            flex: 1;
+            min-width: 0;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background: rgba(255, 255, 255, 0.18);
+            color: white;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .agent-toolbar select:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        .agent-toolbar select option {
+            color: #111827;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn-header {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .icon-btn-header:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .conversation-panel {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .conversation-toolbar-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .conversation-toolbar-row input,
+        .conversation-toolbar-row select {
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            font-size: 13px;
+            background: white;
+            color: #111827;
+            min-width: 0;
+        }
+
+        .conversation-toolbar-row input {
+            flex: 1;
+        }
+
+        .conversation-chip-list {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+
+        .conversation-chip {
+            min-width: 180px;
+            max-width: 240px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid #dbe4f0;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .conversation-chip:hover {
+            border-color: #667eea;
+            box-shadow: 0 6px 14px rgba(102, 126, 234, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .conversation-chip.active {
+            border-color: #667eea;
+            background: #eef2ff;
+            box-shadow: 0 8px 18px rgba(102, 126, 234, 0.18);
+        }
+
+        .conversation-chip-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .conversation-chip-meta {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .conversation-chip-preview {
+            font-size: 12px;
+            color: #374151;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .conversation-empty {
+            font-size: 12px;
+            color: #6b7280;
+            padding: 8px 2px;
+        }
+
+        /* Messages */
+        .messages-container {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            background: #f9fafb;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            animation: slideIn 0.2s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.sent {
+            align-items: flex-end;
+        }
+
+        .message.received {
+            align-items: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .message.sent .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.received .message-bubble {
+            background: white;
+            color: #1f2937;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 4px;
+            padding: 0 6px;
+        }
+
+        /* Thinking indicator */
+        .thinking-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: #f3f4f6;
+            border-radius: 18px;
+            color: #6b7280;
+            font-size: 13px;
+            max-width: 200px;
+        }
+
+        .thinking-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .thinking-dots span {
+            width: 7px;
+            height: 7px;
+            background: #9ca3af;
+            border-radius: 50%;
+            animation: thinking 1.4s infinite ease-in-out both;
+        }
+
+        .thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+        .thinking-dots span:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes thinking {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Media messages */
+        .message-image {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .message-image:hover {
+            transform: scale(1.02);
+        }
+
+        .message-audio {
+            width: 100%;
+            max-width: 280px;
+            margin-top: 8px;
+        }
+
+        .attachment-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.18);
+            color: inherit;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .message.received .attachment-label {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .attachment-hint {
+            margin-top: 8px;
+            font-size: 12px;
+            line-height: 1.5;
+            opacity: 0.85;
+        }
+
+        .attachment-link {
+            color: inherit;
+            text-decoration: underline;
+        }
+
+        .media-caption {
+            font-size: 13px;
+            margin-top: 8px;
+            opacity: 0.9;
+        }
+
+        /* Input area */
+        .input-container {
+            padding: 12px 16px;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .input-container input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 24px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .input-container input[type="text"]:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 12px 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 24px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-recording {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            animation: pulse 1.5s infinite;
+        }
+
+        .media-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .icon-btn.is-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .file-picker-btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .visually-hidden-file-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Config/Settings Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 0;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: #f3f4f6;
+            color: #6b7280;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .server-history {
+            margin-top: 10px;
+        }
+
+        .import-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .file-like-btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scan-modal-video {
+            width: 100%;
+            border-radius: 12px;
+            background: #0f172a;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+        }
+
+        .scan-modal-status {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #4b5563;
+            line-height: 1.6;
+        }
+
+        .scan-modal-note {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        .server-history-item {
+            padding: 10px 12px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .server-history-item:hover {
+            background: #f3f4f6;
+            border-color: #667eea;
+        }
+
+        .server-history-item-info {
+            flex: 1;
+        }
+
+        .server-history-item-url {
+            font-size: 13px;
+            color: #1f2937;
+            font-weight: 500;
+        }
+
+        .server-history-item-meta {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .server-history-item-delete {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: #ef4444;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .server-history-item-delete:hover {
+            background: #fee2e2;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* Help/Guide Modal */
+        .guide-section {
+            margin-bottom: 24px;
+        }
+
+        .guide-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 12px;
+        }
+
+        .guide-section p {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .guide-section ul,
+        .guide-section ol {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.8;
+            padding-left: 24px;
+        }
+
+        .guide-section li {
+            margin-bottom: 6px;
+        }
+
+        .guide-section code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #e0e7ff;
+            color: #4f46e5;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 6px;
+        }
+
+        /* Preview before send */
+        .preview-container {
+            padding: 10px 12px;
+            background: #f9fafb;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .preview-image {
+            width: 70px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .preview-audio {
+            flex: 1;
+        }
+
+        .preview-remove {
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 20px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .preview-remove:hover {
+            background: #fee2e2;
+        }
+
+        /* Image modal for viewing full-size images */
+        .image-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .image-modal img {
+            max-width: 95%;
+            max-height: 95%;
+            border-radius: 8px;
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .image-modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            z-index: 3000;
+            animation: slideInRight 0.3s ease-out;
+            max-width: 300px;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .notification-success {
+            border-left: 4px solid #4ade80;
+        }
+
+        .notification-error {
+            border-left: 4px solid #ef4444;
+        }
+
+        .notification-info {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .notification-message {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .chat-container {
+                height: 100vh;
+                max-width: 100%;
+                border-radius: 0;
+            }
+
+            .conversation-toolbar-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .modal {
+                width: 100%;
+                max-width: 100%;
+                height: 100%;
+                max-height: 100%;
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="header-left">
+                <h1>🤖 Generic Channel Chat</h1>
+                <div class="connection-status disconnected" id="status">
+                    <span class="status-indicator"></span>
+                    <span id="statusText">未连接</span>
+                </div>
+                <div class="agent-toolbar">
+                    <label for="agentSelect">Agent</label>
+                    <select id="agentSelect" onchange="handleAgentSelectionChange()" disabled>
+                        <option value="">自动路由</option>
+                    </select>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn-header" id="helpBtn" onclick="showHelp()" title="使用帮助">❓</button>
+                <button class="icon-btn-header" id="settingsBtn" onclick="showSettings()" title="设置">⚙️</button>
+                <button class="icon-btn-header hidden" id="disconnectBtn" onclick="disconnect()" title="断开连接">🔌</button>
+            </div>
+        </div>
+
+        <div class="conversation-panel">
+            <div class="conversation-toolbar-row">
+                <select id="chatTypeSelect">
+                    <option value="direct">私聊会话</option>
+                    <option value="group">群聊会话</option>
+                </select>
+                <input type="text" id="activeChatIdInput" placeholder="输入会话 ID 或群 ID">
+                <button class="btn btn-secondary" id="openConversationBtn" onclick="openConversationFromPanel()" type="button">打开会话</button>
+                <button class="btn btn-secondary" id="newConversationBtn" onclick="createConversationFromPanel()" type="button">新建会话</button>
+                <button class="btn btn-secondary" id="refreshConversationBtn" onclick="refreshConversationList()" type="button">刷新列表</button>
+            </div>
+            <div class="conversation-chip-list" id="conversationList"></div>
+        </div>
+
+        <div class="messages-container" id="messages"></div>
+
+        <!-- Media preview (before sending) -->
+        <div class="preview-container hidden" id="mediaPreview">
+            <img class="preview-image hidden" id="previewImage" src="" alt="Preview">
+            <audio class="preview-audio hidden" id="previewAudio" controls></audio>
+            <span class="preview-remove" onclick="clearMediaPreview()">✕</span>
+        </div>
+
+        <div class="input-container">
+            <div class="input-row">
+                <div class="media-buttons">
+                    <label class="btn btn-secondary icon-btn file-picker-btn is-disabled" id="imageBtn" for="imageInput" title="发送图片" aria-label="发送图片" aria-disabled="true">
+                        🖼️
+                    </label>
+                    <label class="btn btn-secondary icon-btn file-picker-btn is-disabled" id="audioBtn" for="audioInput" title="发送音频" aria-label="发送音频" aria-disabled="true">
+                        🎵
+                    </label>
+                    <button class="btn btn-secondary icon-btn is-disabled" id="voiceBtn" onclick="toggleRecording()" disabled title="录音" type="button">
+                        🎤
+                    </button>
+                </div>
+                <input type="text" id="messageInput" placeholder="输入消息..." disabled>
+                <button class="btn" id="sendBtn" onclick="sendMessage()" disabled type="button">发送</button>
+            </div>
+        </div>
+
+        <!-- Hidden file inputs -->
+        <input type="file" class="visually-hidden-file-input" id="imageInput" accept="image/*" onchange="handleImageSelect(event)" disabled>
+        <input type="file" class="visually-hidden-file-input" id="audioInput" accept="audio/*" onchange="handleAudioSelect(event)" disabled>
+        <input type="file" class="visually-hidden-file-input" id="qrImportInput" accept="image/*" onchange="importConnectionFromQrImage(event)">
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay hidden" id="settingsModal" onclick="closeSettingsIfBackground(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>连接设置</h2>
+                <button class="modal-close" onclick="closeSettings()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>WebSocket 服务器地址</label>
+                    <input type="text" id="serverUrl" placeholder="ws://localhost:8080/ws">
+                    <small>例如: ws://localhost:8080/ws 或 wss://your-server.com/ws</small>
+                </div>
+                <div class="form-group">
+                    <label>初始会话 ID</label>
+                    <input type="text" id="chatId" placeholder="user-123">
+                    <small>可选。连接后也可以在顶部会话栏里切换/新建会话，不再要求建连时固定死一个 chatId。</small>
+                </div>
+                <div class="form-group">
+                    <label>连接 Token</label>
+                    <input type="password" id="authToken" placeholder="gc_user_xxxxxxxxx">
+                    <small>当服务端启用 user-token 认证时必填。出于安全考虑，此字段不会保存到本地历史。</small>
+                </div>
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="userName" placeholder="Demo User">
+                    <small>显示给 AI 的名称</small>
+                </div>
+
+                <div class="form-group">
+                    <label>快速导入连接</label>
+                    <textarea id="connectionImport" rows="4" placeholder="粘贴 ws://... 或 openclaw://connect?..."></textarea>
+                    <small>支持两种格式：完整 WebSocket URL，例如 <code>ws://host:18080/ws?chatId=xxx&amp;token=xxx&amp;senderId=xxx</code>；以及 <code>openclaw://connect?serverUrl=ws://...&amp;token=xxx&amp;chatId=xxx&amp;name=xxx</code>。</small>
+                    <div class="import-actions">
+                        <button class="btn btn-secondary" type="button" onclick="applyImportedConnectionFromTextarea(false)">解析填充</button>
+                        <button class="btn" type="button" onclick="applyImportedConnectionFromTextarea(true)">导入并连接</button>
+                        <button class="btn btn-secondary" type="button" onclick="showScanModal()">扫码导入</button>
+                        <button class="btn btn-secondary file-like-btn" type="button" onclick="document.getElementById('qrImportInput').click()">二维码图片导入</button>
+                    </div>
+                </div>
+
+                <div class="server-history" id="serverHistory">
+                    <label style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; display: block;">历史连接</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSettings()">取消</button>
+                <button class="btn" onclick="connectFromSettings()">连接</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal-overlay hidden" id="helpModal" onclick="closeHelpIfBackground(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>使用指南</h2>
+                <button class="modal-close" onclick="closeHelp()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="guide-section">
+                    <h3>快速开始</h3>
+                    <ol>
+                        <li>点击右上角 <strong>⚙️ 设置</strong> 按钮</li>
+                        <li>最省事的方式是直接粘贴完整连接 URL，或扫码导入</li>
+                        <li>如果手动填写，再输入 WebSocket 服务器地址（例如：<code>ws://localhost:8080/ws</code>）</li>
+                        <li>填写用户名；如果服务端启用了认证，再填写连接 Token；初始会话 ID 可选</li>
+                        <li>点击 <strong>连接</strong> 按钮</li>
+                        <li>连接成功后，在顶部会话栏里打开一个现有会话，或直接新建一个会话再开始聊天</li>
+                    </ol>
+                </div>
+
+                <div class="guide-section">
+                    <h3>功能说明</h3>
+                    <p><span class="badge">快速导入</span> 支持粘贴完整 WebSocket URL 或 <code>openclaw://connect?... </code> 连接包</p>
+                    <p><span class="badge">扫码登录</span> 支持摄像头扫码和二维码图片导入</p>
+                    <p><span class="badge">多会话</span> 同一用户连接后，可以在顶部会话栏中切换不同 chatId</p>
+                    <p><span class="badge">文本消息</span> 在输入框输入文字，按回车或点击发送按钮</p>
+                    <p><span class="badge">图片消息</span> 点击 🖼️ 按钮选择图片，支持预览后发送</p>
+                    <p><span class="badge">音频文件</span> 点击 🎵 按钮选择本地音频文件，支持预览后发送</p>
+                    <p><span class="badge">语音消息</span> 点击 🎤 按钮开始录音，再次点击停止，支持预览后发送</p>
+                    <p><span class="badge">Agent 选择</span> 连接后可在顶部下拉框切换到不同的服务端 agent</p>
+                    <p><span class="badge">自动重连</span> 连接断开后会自动尝试重新连接</p>
+                    <p><span class="badge">历史记录</span> 自动保存最近的连接配置，方便快速切换</p>
+                </div>
+
+                <div class="guide-section">
+                    <h3>服务器配置</h3>
+                    <p>确保您的 OpenClaw 服务已启动并配置了 Generic Channel：</p>
+                    <pre style="background: #f3f4f6; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px;">
+openclaw config set channels.clawline.enabled true
+openclaw config set channels.clawline.connectionMode websocket
+openclaw config set channels.clawline.wsPort 8080</pre>
+                </div>
+
+                <div class="guide-section">
+                    <h3>消息协议</h3>
+                    <p>本客户端遵循 Generic Channel 消息协议，支持：</p>
+                    <ul>
+                        <li><strong>文本消息</strong>：<code>messageType: "text"</code></li>
+                        <li><strong>图片消息</strong>：<code>messageType: "image"</code>，通过 Data URL 传输</li>
+                        <li><strong>音频消息</strong>：<code>messageType: "audio"</code>，通过 Data URL 传输</li>
+                        <li><strong>语音消息</strong>：<code>messageType: "voice"</code>，WebM 格式</li>
+                        <li><strong>思考状态</strong>：实时显示 AI 思考过程</li>
+                    </ul>
+                </div>
+
+                <div class="guide-section">
+                    <h3>常见问题</h3>
+                    <p><strong>Q: 连接失败怎么办？</strong></p>
+                    <p>A: 请检查服务器地址是否正确，确保 OpenClaw 服务正在运行，检查防火墙设置。</p>
+
+                    <p style="margin-top: 12px;"><strong>Q: 支持哪些浏览器？</strong></p>
+                    <p>A: 现代浏览器均支持，推荐使用 Chrome、Firefox、Safari 或 Edge 最新版本。</p>
+                </div>
+
+                <div class="guide-section" style="background: #fef3c7; padding: 12px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                    <p style="margin: 0; color: #92400e; font-size: 13px;">
+                        <strong>💡 提示：</strong> 首次使用建议阅读完整使用指南。连接配置会自动保存到浏览器本地存储中。
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-full" onclick="closeHelp()">知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="scanModal" onclick="closeScanIfBackground(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>扫码导入连接</h2>
+                <button class="modal-close" onclick="closeScanModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <video id="scanVideo" class="scan-modal-video" autoplay playsinline muted></video>
+                <canvas id="scanCanvas" class="hidden"></canvas>
+                <div class="scan-modal-status" id="scanStatus">正在准备摄像头...</div>
+                <div class="scan-modal-note">如果浏览器不支持摄像头扫码，可以返回设置页，使用“二维码图片导入”或直接粘贴连接 URL。</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" onclick="document.getElementById('qrImportInput').click()">从图片导入</button>
+                <button class="btn btn-secondary" type="button" onclick="closeScanModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image modal for viewing full-size images -->
+    <div class="image-modal hidden" id="imageModal" onclick="closeImageModal()">
+        <button class="image-modal-close" onclick="closeImageModal()">✕</button>
+        <img id="modalImage" src="" alt="Full size image" onclick="event.stopPropagation()">
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script>
+        // Configuration and state management
+        const CONFIG_KEY = 'genericChannelConfig';
+        const HISTORY_KEY = 'genericChannelHistory';
+        const MAX_HISTORY = 5;
+
+        let ws = null;
+        let chatId = '';
+        let chatType = 'direct';
+        let authToken = '';
+        let userName = '';
+        let serverUrl = '';
+        let messageCounter = 0;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let pendingMedia = null;
+        let thinkingElement = null;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 5;
+        let reconnectTimeout = null;
+        let isManualDisconnect = false;
+        let wsConnectionToken = 0;
+        let selectedAgentId = '';
+        let availableAgents = [];
+        let defaultAgentId = '';
+        let conversations = [];
+        let qrScanStream = null;
+        let qrScanFrameId = null;
+        let qrScanBusy = false;
+        let qrDetector = null;
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            loadServerHistory();
+
+            // Show settings if no saved config
+            const config = getSavedConfig();
+            if (!config || !config.serverUrl) {
+                showSettings();
+            }
+        });
+
+        // Configuration management
+        function getSavedConfig() {
+            try {
+                const saved = localStorage.getItem(CONFIG_KEY);
+                return saved ? JSON.parse(saved) : null;
+            } catch (e) {
+                console.error('Failed to load config:', e);
+                return null;
+            }
+        }
+
+        function saveConfig(config) {
+            try {
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+            } catch (e) {
+                console.error('Failed to save config:', e);
+            }
+        }
+
+        function loadConfig() {
+            const config = getSavedConfig();
+            if (config) {
+                document.getElementById('serverUrl').value = config.serverUrl || 'ws://localhost:8080/ws';
+                document.getElementById('chatId').value = config.chatId || '';
+                document.getElementById('authToken').value = '';
+                document.getElementById('userName').value = config.userName || '';
+                selectedAgentId = typeof config.selectedAgentId === 'string' ? config.selectedAgentId : '';
+                chatType = config.chatType === 'group' ? 'group' : 'direct';
+                chatId = config.chatId || '';
+            } else {
+                document.getElementById('serverUrl').value = 'ws://localhost:8080/ws';
+                document.getElementById('chatId').value = '';
+                document.getElementById('authToken').value = '';
+                document.getElementById('userName').value = 'Demo User';
+                selectedAgentId = '';
+                chatType = 'direct';
+                chatId = '';
+            }
+
+            document.getElementById('chatTypeSelect').value = chatType;
+            document.getElementById('activeChatIdInput').value = chatId;
+            renderAgentOptions(availableAgents, selectedAgentId, defaultAgentId);
+            renderConversationList();
+        }
+
+        // Server history management
+        function getServerHistory() {
+            try {
+                const saved = localStorage.getItem(HISTORY_KEY);
+                return saved ? JSON.parse(saved) : [];
+            } catch (e) {
+                console.error('Failed to load history:', e);
+                return [];
+            }
+        }
+
+        function saveServerHistory(history) {
+            try {
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+            } catch (e) {
+                console.error('Failed to save history:', e);
+            }
+        }
+
+        function addToHistory(config) {
+            let history = getServerHistory();
+
+            // Remove duplicates
+            history = history.filter(item =>
+                item.serverUrl !== config.serverUrl ||
+                item.chatId !== config.chatId
+            );
+
+            // Add to beginning
+            history.unshift({
+                serverUrl: config.serverUrl,
+                chatId: config.chatId,
+                userName: config.userName,
+                chatType: config.chatType || 'direct',
+                selectedAgentId: config.selectedAgentId || '',
+                timestamp: Date.now()
+            });
+
+            // Keep only last MAX_HISTORY items
+            history = history.slice(0, MAX_HISTORY);
+
+            saveServerHistory(history);
+        }
+
+        function loadServerHistory() {
+            const history = getServerHistory();
+            const container = document.getElementById('serverHistory');
+
+            if (history.length === 0) {
+                return;
+            }
+
+            const historyHTML = history.map((item, index) => {
+                const date = new Date(item.timestamp);
+                const timeStr = date.toLocaleString('zh-CN', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                return `
+                    <div class="server-history-item" onclick="useHistoryItem(${index})">
+                        <div class="server-history-item-info">
+                            <div class="server-history-item-url">${escapeHtml(item.userName)} @ ${escapeHtml(item.chatId)}</div>
+                            <div class="server-history-item-meta">${escapeHtml(item.serverUrl)} · ${timeStr}</div>
+                        </div>
+                        <button class="server-history-item-delete" onclick="deleteHistoryItem(event, ${index})" title="删除">✕</button>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <label style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; display: block;">历史连接</label>
+                ${historyHTML}
+            `;
+        }
+
+        function useHistoryItem(index) {
+            const history = getServerHistory();
+            if (history[index]) {
+                const item = history[index];
+                document.getElementById('serverUrl').value = item.serverUrl;
+                document.getElementById('chatId').value = item.chatId;
+                document.getElementById('authToken').value = '';
+                document.getElementById('userName').value = item.userName;
+                selectedAgentId = typeof item.selectedAgentId === 'string' ? item.selectedAgentId : '';
+                chatType = item.chatType === 'group' ? 'group' : 'direct';
+                chatId = item.chatId || '';
+                document.getElementById('chatTypeSelect').value = chatType;
+                document.getElementById('activeChatIdInput').value = chatId;
+                renderAgentOptions(availableAgents, selectedAgentId, defaultAgentId);
+            }
+        }
+
+        function persistCurrentConfig() {
+            const nextChatId = document.getElementById('chatId').value.trim() || chatId;
+            saveConfig({
+                serverUrl: document.getElementById('serverUrl').value.trim() || serverUrl,
+                chatId: nextChatId,
+                userName: document.getElementById('userName').value.trim() || userName,
+                chatType,
+                selectedAgentId
+            });
+        }
+
+        function buildWebSocketUrl(baseUrl, nextChatId, nextAgentId, nextAuthToken) {
+            const parsed = new URL(baseUrl);
+            if (nextChatId) {
+                parsed.searchParams.set('chatId', nextChatId);
+            } else {
+                parsed.searchParams.delete('chatId');
+            }
+
+            if (nextAgentId) {
+                parsed.searchParams.set('agentId', nextAgentId);
+            } else {
+                parsed.searchParams.delete('agentId');
+            }
+
+            if (nextAuthToken) {
+                parsed.searchParams.set('token', nextAuthToken);
+            } else {
+                parsed.searchParams.delete('token');
+            }
+
+            return parsed.toString();
+        }
+
+        function normalizeImportedWebSocketUrl(rawUrl) {
+            const parsed = new URL(rawUrl);
+            const imported = {
+                serverUrl: '',
+                token: parsed.searchParams.get('token')?.trim() || '',
+                chatId: parsed.searchParams.get('chatId')?.trim() || '',
+                userName:
+                    parsed.searchParams.get('senderId')?.trim() ||
+                    parsed.searchParams.get('name')?.trim() ||
+                    parsed.searchParams.get('userName')?.trim() ||
+                    '',
+                selectedAgentId: parsed.searchParams.get('agentId')?.trim() || '',
+                chatType: parsed.searchParams.get('chatType') === 'group' ? 'group' : 'direct'
+            };
+
+            [
+                'token',
+                'chatId',
+                'senderId',
+                'name',
+                'userName',
+                'agentId',
+                'chatType'
+            ].forEach((key) => parsed.searchParams.delete(key));
+
+            imported.serverUrl = parsed.toString();
+            return imported;
+        }
+
+        function parseImportedConnection(rawValue) {
+            const raw = (rawValue || '').trim();
+            if (!raw) {
+                throw new Error('请先粘贴连接 URL');
+            }
+
+            if (/^openclaw:\/\/connect/i.test(raw)) {
+                const parsed = new URL(raw);
+                const nestedServerUrl = parsed.searchParams.get('serverUrl')?.trim() || '';
+                if (!nestedServerUrl) {
+                    throw new Error('openclaw://connect 缺少 serverUrl');
+                }
+
+                const imported = normalizeImportedWebSocketUrl(nestedServerUrl);
+                return {
+                    serverUrl: imported.serverUrl,
+                    token: parsed.searchParams.get('token')?.trim() || imported.token,
+                    chatId: parsed.searchParams.get('chatId')?.trim() || imported.chatId,
+                    userName:
+                        parsed.searchParams.get('name')?.trim() ||
+                        parsed.searchParams.get('senderId')?.trim() ||
+                        parsed.searchParams.get('userName')?.trim() ||
+                        imported.userName,
+                    selectedAgentId: parsed.searchParams.get('agentId')?.trim() || imported.selectedAgentId,
+                    chatType: parsed.searchParams.get('chatType') === 'group' ? 'group' : imported.chatType
+                };
+            }
+
+            if (/^wss?:\/\//i.test(raw)) {
+                return normalizeImportedWebSocketUrl(raw);
+            }
+
+            throw new Error('只支持 ws://、wss:// 和 openclaw://connect 这两类连接地址');
+        }
+
+        function applyImportedConnection(rawValue, options = {}) {
+            const imported = parseImportedConnection(rawValue);
+            const shouldConnect = options.connectNow === true;
+            const nextUserName = imported.userName || document.getElementById('userName').value.trim() || 'Demo User';
+
+            document.getElementById('serverUrl').value = imported.serverUrl;
+            document.getElementById('authToken').value = imported.token || '';
+            document.getElementById('chatId').value = imported.chatId || '';
+            document.getElementById('userName').value = nextUserName;
+            document.getElementById('activeChatIdInput').value = imported.chatId || '';
+            document.getElementById('chatTypeSelect').value = imported.chatType || 'direct';
+
+            serverUrl = imported.serverUrl;
+            authToken = imported.token || '';
+            chatId = imported.chatId || '';
+            userName = nextUserName;
+            chatType = imported.chatType || 'direct';
+            selectedAgentId = imported.selectedAgentId || '';
+
+            renderAgentOptions(availableAgents, selectedAgentId, defaultAgentId);
+            persistCurrentConfig();
+            document.getElementById('connectionImport').value = rawValue.trim();
+
+            if (shouldConnect) {
+                closeScanModal();
+                closeSettings();
+                connect();
+                return imported;
+            }
+
+            showNotification('已导入连接信息', 'success');
+            return imported;
+        }
+
+        function applyImportedConnectionFromTextarea(connectNow) {
+            try {
+                applyImportedConnection(document.getElementById('connectionImport').value, { connectNow });
+            } catch (error) {
+                showNotification(error.message || '导入连接失败', 'error');
+            }
+        }
+
+        async function ensureQrDetector() {
+            if (qrDetector !== null) {
+                return qrDetector;
+            }
+
+            if (typeof BarcodeDetector === 'undefined') {
+                qrDetector = undefined;
+                return qrDetector;
+            }
+
+            try {
+                qrDetector = new BarcodeDetector({ formats: ['qr_code'] });
+            } catch (error) {
+                console.warn('BarcodeDetector init failed:', error);
+                qrDetector = undefined;
+            }
+
+            return qrDetector;
+        }
+
+        async function decodeQrFromCanvasSource(source, width, height) {
+            const detector = await ensureQrDetector();
+            if (detector) {
+                const results = await detector.detect(source);
+                if (results && results[0] && results[0].rawValue) {
+                    return results[0].rawValue;
+                }
+            }
+
+            const canvas = document.getElementById('scanCanvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d', { willReadFrequently: true });
+            context.drawImage(source, 0, 0, width, height);
+
+            if (typeof window.jsQR !== 'function') {
+                return '';
+            }
+
+            const imageData = context.getImageData(0, 0, width, height);
+            const result = window.jsQR(imageData.data, width, height);
+            return result?.data || '';
+        }
+
+        async function importConnectionFromQrImage(event) {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+
+            if (!file) {
+                return;
+            }
+
+            try {
+                let source = null;
+                let width = 0;
+                let height = 0;
+
+                if (typeof createImageBitmap === 'function') {
+                    source = await createImageBitmap(file);
+                    width = source.width;
+                    height = source.height;
+                } else {
+                    const imageUrl = URL.createObjectURL(file);
+                    source = await new Promise((resolve, reject) => {
+                        const image = new Image();
+                        image.onload = () => resolve(image);
+                        image.onerror = () => reject(new Error('图片加载失败'));
+                        image.src = imageUrl;
+                    });
+                    width = source.naturalWidth || source.width;
+                    height = source.naturalHeight || source.height;
+                    URL.revokeObjectURL(imageUrl);
+                }
+
+                const qrText = await decodeQrFromCanvasSource(source, width, height);
+                source.close?.();
+
+                if (!qrText) {
+                    throw new Error('未识别到二维码内容');
+                }
+
+                document.getElementById('connectionImport').value = qrText;
+                applyImportedConnection(qrText, { connectNow: true });
+            } catch (error) {
+                console.error('Failed to import QR image:', error);
+                showNotification(error.message || '二维码图片导入失败', 'error');
+            }
+        }
+
+        function formatAgentOptionLabel(agent) {
+            if (!agent || !agent.id) {
+                return '';
+            }
+
+            const parts = [];
+            const displayName = agent.name && agent.name !== agent.id
+                ? `${agent.name} (${agent.id})`
+                : agent.id;
+
+            parts.push(displayName);
+
+            if (agent.isDefault) {
+                parts.push('默认');
+            }
+
+            if (agent.model) {
+                parts.push(agent.model);
+            }
+
+            return parts.join(' · ');
+        }
+
+        function renderAgentOptions(agents, currentAgentId, defaultAgentId) {
+            const select = document.getElementById('agentSelect');
+            const safeAgents = Array.isArray(agents) ? agents : [];
+            const autoLabel = defaultAgentId
+                ? `自动路由（默认: ${defaultAgentId}）`
+                : '自动路由';
+
+            const options = [
+                `<option value="">${escapeHtml(autoLabel)}</option>`,
+                ...safeAgents
+                    .filter(agent => agent && agent.id)
+                    .map(agent => `
+                        <option value="${escapeHtml(agent.id)}">${escapeHtml(formatAgentOptionLabel(agent))}</option>
+                    `)
+            ];
+
+            select.innerHTML = options.join('');
+
+            const normalizedCurrentAgentId = (currentAgentId || '').trim();
+            const hasCurrentAgent = normalizedCurrentAgentId &&
+                safeAgents.some(agent => agent.id === normalizedCurrentAgentId);
+
+            select.value = hasCurrentAgent ? normalizedCurrentAgentId : '';
+
+            // 在 agent 列表尚未返回前，保留导入 URL 里携带的 agentId，
+            // 这样首次连接时仍然会把它带进握手 URL。
+            if (hasCurrentAgent || safeAgents.length === 0) {
+                selectedAgentId = normalizedCurrentAgentId;
+                return;
+            }
+
+            selectedAgentId = '';
+        }
+
+        function requestAgentList() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            ws.send(JSON.stringify({
+                type: 'agent.list.get',
+                data: {
+                    requestId: `agent-list-${Date.now()}`
+                }
+            }));
+        }
+
+        function requestAgentSelect(agentId) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            ws.send(JSON.stringify({
+                type: 'agent.select',
+                data: {
+                    requestId: `agent-select-${Date.now()}`,
+                    agentId: agentId || null
+                }
+            }));
+        }
+
+        function requestConversationList() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            ws.send(JSON.stringify({
+                type: 'conversation.list.get',
+                data: {
+                    requestId: `conversation-list-${Date.now()}`,
+                    agentId: selectedAgentId || undefined,
+                    limit: 50
+                }
+            }));
+        }
+
+        function requestConversationHistory(nextChatId) {
+            if (!ws || ws.readyState !== WebSocket.OPEN || !nextChatId) {
+                return;
+            }
+
+            ws.send(JSON.stringify({
+                type: 'history.get',
+                data: {
+                    requestId: `history-${Date.now()}`,
+                    chatId: nextChatId,
+                    limit: 100
+                }
+            }));
+        }
+
+        function renderConversationList() {
+            const container = document.getElementById('conversationList');
+            const safeConversations = Array.isArray(conversations) ? conversations : [];
+
+            if (safeConversations.length === 0) {
+                container.innerHTML = '<div class="conversation-empty">当前 agent 下还没有历史会话。你可以直接输入一个会话 ID 后点击“打开会话”，或点“新建会话”。</div>';
+                return;
+            }
+
+            container.innerHTML = safeConversations.map((item) => {
+                const activeClass = item.chatId === chatId ? 'active' : '';
+                const time = item.lastTimestamp ? new Date(item.lastTimestamp).toLocaleString('zh-CN', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) : '--';
+                const typeLabel = item.chatType === 'group' ? '群聊' : '私聊';
+                const preview = item.lastContent || '[空会话]';
+                const encodedChatId = encodeURIComponent(item.chatId);
+                const encodedChatType = encodeURIComponent(item.chatType || 'direct');
+                return `
+                    <button class="conversation-chip ${activeClass}" type="button" onclick="selectConversationFromList(decodeURIComponent('${encodedChatId}'), decodeURIComponent('${encodedChatType}'))">
+                        <div class="conversation-chip-title">${escapeHtml(item.chatId)}</div>
+                        <div class="conversation-chip-meta">${typeLabel} · ${time}</div>
+                        <div class="conversation-chip-preview">${escapeHtml(preview)}</div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function updateActiveConversationControls() {
+            document.getElementById('activeChatIdInput').value = chatId || '';
+            document.getElementById('chatTypeSelect').value = chatType || 'direct';
+            document.getElementById('chatId').value = chatId || '';
+        }
+
+        function clearMessagesView() {
+            const messagesContainer = document.getElementById('messages');
+            messagesContainer.innerHTML = '';
+            hideThinkingIndicator();
+        }
+
+        function setActiveConversation(nextChatId, nextChatType = 'direct', options = {}) {
+            chatId = (nextChatId || '').trim();
+            chatType = nextChatType === 'group' ? 'group' : 'direct';
+            updateActiveConversationControls();
+            renderConversationList();
+            persistCurrentConfig();
+
+            if (options.clearMessages) {
+                clearMessagesView();
+            }
+
+            if (options.fetchHistory && chatId) {
+                requestConversationHistory(chatId);
+            }
+        }
+
+        function selectConversationFromList(nextChatId, nextChatType = 'direct') {
+            setActiveConversation(nextChatId, nextChatType, {
+                clearMessages: true,
+                fetchHistory: true
+            });
+        }
+
+        function createConversationId() {
+            const type = document.getElementById('chatTypeSelect').value === 'group' ? 'group' : 'direct';
+            const agentSegment = (selectedAgentId || defaultAgentId || 'auto').replace(/[^a-zA-Z0-9_-]+/g, '-');
+            const prefix = type === 'group' ? 'group' : 'conv';
+            return `${prefix}-${agentSegment}-${Date.now()}`;
+        }
+
+        function openConversationFromPanel() {
+            const nextChatId = document.getElementById('activeChatIdInput').value.trim();
+            const nextChatType = document.getElementById('chatTypeSelect').value;
+
+            if (!nextChatId) {
+                showNotification('请先输入会话 ID', 'error');
+                return;
+            }
+
+            setActiveConversation(nextChatId, nextChatType, {
+                clearMessages: true,
+                fetchHistory: true
+            });
+        }
+
+        function createConversationFromPanel() {
+            const nextChatType = document.getElementById('chatTypeSelect').value;
+            const nextChatId = createConversationId();
+            document.getElementById('activeChatIdInput').value = nextChatId;
+            setActiveConversation(nextChatId, nextChatType, {
+                clearMessages: true,
+                fetchHistory: true
+            });
+        }
+
+        function refreshConversationList() {
+            requestConversationList();
+            if (chatId) {
+                requestConversationHistory(chatId);
+            }
+        }
+
+        function handleAgentSelectionChange() {
+            const select = document.getElementById('agentSelect');
+            selectedAgentId = select.value.trim();
+            persistCurrentConfig();
+            requestAgentSelect(selectedAgentId);
+        }
+
+        function deleteHistoryItem(event, index) {
+            event.stopPropagation();
+            let history = getServerHistory();
+            history.splice(index, 1);
+            saveServerHistory(history);
+            loadServerHistory();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Connection management
+        function connect() {
+            serverUrl = document.getElementById('serverUrl').value.trim();
+            chatId = document.getElementById('chatId').value.trim();
+            chatType = document.getElementById('chatTypeSelect').value === 'group' ? 'group' : 'direct';
+            authToken = document.getElementById('authToken').value.trim();
+            userName = document.getElementById('userName').value.trim();
+
+            if (!serverUrl || !userName) {
+                showNotification('请至少填写服务器地址和用户名', 'error');
+                return;
+            }
+
+            // Save config
+            const config = { serverUrl, chatId, userName, chatType, selectedAgentId };
+            saveConfig(config);
+            addToHistory(config);
+            updateActiveConversationControls();
+            renderConversationList();
+
+            // Connect to WebSocket
+            const url = buildWebSocketUrl(serverUrl, chatId, selectedAgentId, authToken);
+
+            try {
+                clearReconnectTimer();
+                replaceActiveSocket();
+                isManualDisconnect = false;
+                const socket = new WebSocket(url);
+                ws = socket;
+                wsConnectionToken++;
+                setupWebSocketHandlers(socket, wsConnectionToken);
+            } catch (error) {
+                console.error('Failed to create WebSocket:', error);
+                showNotification('连接失败: ' + error.message, 'error');
+                updateStatus('disconnected');
+            }
+        }
+
+        function connectFromSettings() {
+            closeSettings();
+            connect();
+        }
+
+        function setupWebSocketHandlers(socket, connectionToken) {
+            socket.onopen = () => {
+                if (!isCurrentSocket(socket, connectionToken)) {
+                    return;
+                }
+                console.log('WebSocket connected');
+                updateStatus('connected');
+                reconnectAttempts = 0;
+                enableInputs();
+                document.getElementById('disconnectBtn').classList.remove('hidden');
+                requestAgentList();
+                requestConversationList();
+                if (chatId) {
+                    requestConversationHistory(chatId);
+                }
+                showNotification('已连接到服务器', 'success');
+            };
+
+            socket.onmessage = (event) => {
+                if (!isCurrentSocket(socket, connectionToken)) {
+                    return;
+                }
+                console.log('Message received:', event.data);
+                try {
+                    const message = JSON.parse(event.data);
+                    handleIncomingMessage(message);
+                } catch (error) {
+                    console.error('Failed to parse message:', error);
+                }
+            };
+
+            socket.onclose = (event) => {
+                if (!isCurrentSocket(socket, connectionToken)) {
+                    return;
+                }
+                console.log('WebSocket disconnected', event.code, event.reason);
+                updateStatus('disconnected');
+                disableInputs();
+                document.getElementById('disconnectBtn').classList.add('hidden');
+                ws = null;
+
+                // Auto-reconnect if not manually disconnected
+                if (!isManualDisconnect && event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+                    scheduleReconnect(connectionToken);
+                } else if (!isManualDisconnect && reconnectAttempts >= maxReconnectAttempts) {
+                    showNotification('连接失败次数过多，请手动重新连接', 'error');
+                }
+            };
+
+            socket.onerror = (error) => {
+                if (!isCurrentSocket(socket, connectionToken)) {
+                    return;
+                }
+                console.error('WebSocket error:', error);
+                showNotification('连接错误', 'error');
+            };
+        }
+
+        function isCurrentSocket(socket, connectionToken) {
+            return ws === socket && wsConnectionToken === connectionToken;
+        }
+
+        function clearReconnectTimer() {
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
+            }
+        }
+
+        function replaceActiveSocket() {
+            if (!ws) {
+                return;
+            }
+
+            const socket = ws;
+            ws = null;
+            socket.onopen = null;
+            socket.onmessage = null;
+            socket.onclose = null;
+            socket.onerror = null;
+
+            if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                socket.close(1000, 'Connection replaced');
+            }
+        }
+
+        function scheduleReconnect(connectionToken) {
+            reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
+
+            updateStatus('reconnecting');
+            showNotification(`${reconnectAttempts}/${maxReconnectAttempts} 尝试重新连接...`, 'info');
+
+            clearReconnectTimer();
+            reconnectTimeout = setTimeout(() => {
+                reconnectTimeout = null;
+                if (connectionToken !== wsConnectionToken || ws) {
+                    return;
+                }
+                console.log('Attempting to reconnect...');
+                connect();
+            }, delay);
+        }
+
+        function disconnect() {
+            clearReconnectTimer();
+
+            if (ws) {
+                isManualDisconnect = true;
+                reconnectAttempts = 0;
+                const socket = ws;
+                ws = null;
+                socket.onopen = null;
+                socket.onmessage = null;
+                socket.onclose = null;
+                socket.onerror = null;
+                socket.close(1000, 'User disconnected');
+            }
+
+            updateStatus('disconnected');
+            disableInputs();
+            document.getElementById('disconnectBtn').classList.add('hidden');
+            showNotification('已断开连接', 'info');
+        }
+
+        function enableInputs() {
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('voiceBtn').disabled = false;
+            document.getElementById('agentSelect').disabled = false;
+            document.getElementById('imageBtn').classList.remove('is-disabled');
+            document.getElementById('audioBtn').classList.remove('is-disabled');
+            document.getElementById('voiceBtn').classList.remove('is-disabled');
+            document.getElementById('imageBtn').setAttribute('aria-disabled', 'false');
+            document.getElementById('audioBtn').setAttribute('aria-disabled', 'false');
+            document.getElementById('imageInput').disabled = false;
+            document.getElementById('audioInput').disabled = false;
+        }
+
+        function disableInputs() {
+            document.getElementById('messageInput').disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('voiceBtn').disabled = true;
+            document.getElementById('agentSelect').disabled = true;
+            document.getElementById('imageBtn').classList.add('is-disabled');
+            document.getElementById('audioBtn').classList.add('is-disabled');
+            document.getElementById('voiceBtn').classList.add('is-disabled');
+            document.getElementById('imageBtn').setAttribute('aria-disabled', 'true');
+            document.getElementById('audioBtn').setAttribute('aria-disabled', 'true');
+            document.getElementById('imageInput').disabled = true;
+            document.getElementById('audioInput').disabled = true;
+
+            if (isRecording) {
+                stopRecording();
+            }
+        }
+
+        function updateStatus(status) {
+            const statusEl = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+
+            statusEl.className = `connection-status ${status}`;
+
+            if (status === 'connected') {
+                statusText.textContent = '已连接';
+            } else if (status === 'reconnecting') {
+                statusText.textContent = '重新连接中...';
+            } else {
+                statusText.textContent = '未连接';
+            }
+        }
+
+        // Message handling
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+
+            if (!chatId) {
+                showNotification('请先打开或新建一个会话', 'error');
+                return;
+            }
+
+            // If we have pending media, send it
+            if (pendingMedia) {
+                sendMediaMessage(pendingMedia.type, pendingMedia.dataUrl, pendingMedia.mimeType, text);
+                clearMediaPreview();
+                input.value = '';
+                return;
+            }
+
+            // Otherwise send text
+            if (!text || !ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            messageCounter++;
+            const message = {
+                type: 'message.receive',
+                data: {
+                    messageId: `msg-${Date.now()}-${messageCounter}`,
+                    chatId: chatId,
+                    chatType: chatType,
+                    senderId: userName || chatId,
+                    senderName: userName,
+                    agentId: selectedAgentId || undefined,
+                    messageType: 'text',
+                    content: text,
+                    timestamp: Date.now()
+                }
+            };
+
+            ws.send(JSON.stringify(message));
+            addTextMessage(text, 'sent');
+            input.value = '';
+            requestConversationList();
+        }
+
+        function sendMediaMessage(mediaType, dataUrl, mimeType, caption = '') {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            if (!chatId) {
+                showNotification('请先打开或新建一个会话', 'error');
+                return;
+            }
+
+            messageCounter++;
+            const message = {
+                type: 'message.receive',
+                data: {
+                    messageId: `msg-${Date.now()}-${messageCounter}`,
+                    chatId: chatId,
+                    chatType: chatType,
+                    senderId: userName || chatId,
+                    senderName: userName,
+                    agentId: selectedAgentId || undefined,
+                    messageType: mediaType,
+                    content: caption,
+                    mediaUrl: dataUrl,
+                    mimeType: mimeType,
+                    timestamp: Date.now()
+                }
+            };
+
+            ws.send(JSON.stringify(message));
+
+            if (mediaType === 'image') {
+                addImageMessage(dataUrl, caption, 'sent');
+            } else if (mediaType === 'voice' || mediaType === 'audio') {
+                addAudioMessage(dataUrl, caption, 'sent', mediaType, undefined, mimeType);
+            }
+            requestConversationList();
+        }
+
+        function handleIncomingMessage(event) {
+            switch (event.type) {
+                case 'message.send':
+                    handleMessageSend(event.data);
+                    break;
+                case 'history.sync':
+                    handleHistorySync(event.data);
+                    break;
+                case 'connection.open':
+                    handleConnectionOpen(event.data);
+                    break;
+                case 'agent.list':
+                    handleAgentList(event.data);
+                    break;
+                case 'agent.selected':
+                    handleAgentSelected(event.data);
+                    break;
+                case 'conversation.list':
+                    handleConversationList(event.data);
+                    break;
+                case 'thinking.start':
+                    showThinkingIndicator();
+                    break;
+                case 'thinking.update':
+                    updateThinkingIndicator(event.data?.content);
+                    break;
+                case 'thinking.end':
+                    hideThinkingIndicator();
+                    break;
+            }
+        }
+
+        function handleConnectionOpen(payload) {
+            console.log('Connection confirmed:', payload);
+            if (!chatId && payload?.chatId) {
+                setActiveConversation(payload.chatId, chatType, {
+                    clearMessages: true,
+                    fetchHistory: true
+                });
+            }
+        }
+
+        function handleMessageSend(msg) {
+            requestConversationList();
+            if (msg?.chatId && chatId && msg.chatId !== chatId) {
+                showNotification(`会话 ${msg.chatId} 收到新消息`, 'info');
+                return;
+            }
+
+            hideThinkingIndicator();
+
+            const contentType = msg.contentType || 'text';
+
+            if (contentType === 'image' && msg.mediaUrl) {
+                addImageMessage(msg.mediaUrl, msg.content, 'received', msg.timestamp);
+            } else if ((contentType === 'voice' || contentType === 'audio') && msg.mediaUrl) {
+                addAudioMessage(msg.mediaUrl, msg.content, 'received', contentType, msg.timestamp, msg.mimeType);
+            } else {
+                addTextMessage(msg.content, 'received', msg.timestamp);
+            }
+        }
+
+        function handleHistorySync(payload) {
+            if (!payload?.messages || !Array.isArray(payload.messages)) {
+                return;
+            }
+
+            if (payload.chatId && payload.chatId !== chatId) {
+                return;
+            }
+
+            hideThinkingIndicator();
+
+            const messagesContainer = document.getElementById('messages');
+            messagesContainer.innerHTML = '';
+
+            for (const entry of payload.messages) {
+                try {
+                    renderHistoryMessage(entry);
+                } catch (error) {
+                    console.error('Failed to render history message:', error, entry);
+                }
+            }
+
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            requestConversationList();
+        }
+
+        function handleAgentList(payload) {
+            availableAgents = Array.isArray(payload?.agents) ? payload.agents : [];
+            defaultAgentId = typeof payload?.defaultAgentId === 'string' ? payload.defaultAgentId : '';
+            renderAgentOptions(
+                availableAgents,
+                typeof payload?.selectedAgentId === 'string' ? payload.selectedAgentId : selectedAgentId,
+                defaultAgentId
+            );
+            persistCurrentConfig();
+            requestConversationList();
+        }
+
+        function handleAgentSelected(payload) {
+            if (!payload) {
+                return;
+            }
+
+            if (payload.ok) {
+                selectedAgentId = typeof payload.selectedAgentId === 'string' ? payload.selectedAgentId : '';
+                renderAgentOptions(availableAgents, selectedAgentId, defaultAgentId);
+                persistCurrentConfig();
+                requestConversationList();
+
+                const label = selectedAgentId ? `已切换到 agent: ${selectedAgentId}` : '已切换为自动路由';
+                showNotification(label, 'success');
+                return;
+            }
+
+            showNotification(payload.error || 'Agent 选择失败', 'error');
+            renderAgentOptions(
+                availableAgents,
+                typeof payload.selectedAgentId === 'string' ? payload.selectedAgentId : '',
+                defaultAgentId
+            );
+            persistCurrentConfig();
+        }
+
+        function handleConversationList(payload) {
+            conversations = Array.isArray(payload?.conversations) ? payload.conversations : [];
+            renderConversationList();
+
+            if (!chatId && conversations.length > 0) {
+                const first = conversations[0];
+                setActiveConversation(first.chatId, first.chatType || 'direct', {
+                    clearMessages: true,
+                    fetchHistory: true
+                });
+            }
+        }
+
+        function renderHistoryMessage(entry) {
+            const type = entry.direction === 'sent' ? 'sent' : 'received';
+            const contentType = entry.contentType || 'text';
+
+            if (contentType === 'image' && entry.mediaUrl) {
+                addImageMessage(entry.mediaUrl, entry.content, type, entry.timestamp);
+                return;
+            }
+
+            if ((contentType === 'voice' || contentType === 'audio') && entry.mediaUrl) {
+                addAudioMessage(entry.mediaUrl, entry.content, type, contentType, entry.timestamp, entry.mimeType);
+                return;
+            }
+
+            const text = contentType === 'file'
+                ? (entry.content || '[文件消息]')
+                : (entry.content || '');
+            addTextMessage(text, type, entry.timestamp);
+        }
+
+        // Thinking indicator
+        function showThinkingIndicator() {
+            if (thinkingElement) return;
+
+            const messagesContainer = document.getElementById('messages');
+            thinkingElement = document.createElement('div');
+            thinkingElement.className = 'message received';
+            thinkingElement.id = 'thinking';
+            thinkingElement.innerHTML = `
+                <div class="thinking-indicator">
+                    <div class="thinking-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <span>思考中...</span>
+                </div>
+            `;
+            messagesContainer.appendChild(thinkingElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function updateThinkingIndicator(content) {
+            if (thinkingElement && content) {
+                const indicator = thinkingElement.querySelector('.thinking-indicator span:last-child');
+                if (indicator) {
+                    indicator.textContent = content;
+                }
+            }
+        }
+
+        function hideThinkingIndicator() {
+            if (thinkingElement) {
+                thinkingElement.remove();
+                thinkingElement = null;
+            }
+        }
+
+        // Message display
+        function addTextMessage(text, type, timestamp) {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+            bubbleDiv.textContent = text;
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            const time = timestamp ? new Date(timestamp) : new Date();
+            timeDiv.textContent = time.toLocaleTimeString('zh-CN');
+
+            messageDiv.appendChild(bubbleDiv);
+            messageDiv.appendChild(timeDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addImageMessage(src, caption, type, timestamp) {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+
+            const img = document.createElement('img');
+            img.className = 'message-image';
+            img.src = src;
+            img.alt = 'Image';
+            img.onclick = () => showImageModal(src);
+            bubbleDiv.appendChild(img);
+
+            if (caption) {
+                const captionDiv = document.createElement('div');
+                captionDiv.className = 'media-caption';
+                captionDiv.textContent = caption;
+                bubbleDiv.appendChild(captionDiv);
+            }
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            const time = timestamp ? new Date(timestamp) : new Date();
+            timeDiv.textContent = time.toLocaleTimeString('zh-CN');
+
+            messageDiv.appendChild(bubbleDiv);
+            messageDiv.appendChild(timeDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function createAttachmentLabel(icon, text) {
+            const label = document.createElement('div');
+            label.className = 'attachment-label';
+            label.textContent = `${icon} ${text}`;
+            return label;
+        }
+
+        function addAudioMessage(src, caption, type, mediaType = 'audio', timestamp, mimeType = 'audio/webm') {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+
+            const attachmentLabel = mediaType === 'voice' ? '语音消息' : '音频消息';
+            bubbleDiv.appendChild(createAttachmentLabel('🎵', attachmentLabel));
+
+            const audio = document.createElement('audio');
+            audio.className = 'message-audio';
+            audio.controls = true;
+            audio.preload = 'metadata';
+            audio.src = src;
+
+            const canPlay = !mimeType || audio.canPlayType(mimeType) !== '';
+            if (canPlay) {
+                bubbleDiv.appendChild(audio);
+            } else {
+                const hint = document.createElement('div');
+                hint.className = 'attachment-hint';
+                hint.innerHTML = `当前浏览器可能不支持 <strong>${escapeHtml(mimeType)}</strong>，可尝试下载后播放。`;
+
+                const link = document.createElement('a');
+                link.className = 'attachment-link';
+                link.href = src;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = '打开音频';
+                hint.appendChild(document.createTextNode(' '));
+                hint.appendChild(link);
+                bubbleDiv.appendChild(hint);
+            }
+
+            if (caption) {
+                const captionDiv = document.createElement('div');
+                captionDiv.className = 'media-caption';
+                captionDiv.textContent = caption;
+                bubbleDiv.appendChild(captionDiv);
+            }
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            const time = timestamp ? new Date(timestamp) : new Date();
+            timeDiv.textContent = time.toLocaleTimeString('zh-CN');
+
+            messageDiv.appendChild(bubbleDiv);
+            messageDiv.appendChild(timeDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Media handling
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 10 * 1024 * 1024) {
+                showNotification('图片大小不能超过 10MB', 'error');
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                showMediaPreview('image', dataUrl, file.type);
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        }
+
+        function handleAudioSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 30 * 1024 * 1024) {
+                showNotification('音频大小不能超过 30MB', 'error');
+                event.target.value = '';
+                return;
+            }
+
+            if (file.type && !file.type.startsWith('audio/')) {
+                showNotification('请选择音频文件', 'error');
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                showMediaPreview('audio', dataUrl, file.type || 'audio/mpeg');
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        }
+
+        async function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                await startRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        showMediaPreview('voice', e.target.result, 'audio/webm');
+                    };
+                    reader.readAsDataURL(audioBlob);
+
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+
+                const voiceBtn = document.getElementById('voiceBtn');
+                voiceBtn.textContent = '⏹️';
+                voiceBtn.classList.add('btn-recording');
+            } catch (err) {
+                console.error('Failed to start recording:', err);
+                showNotification('无法访问麦克风，请检查权限设置', 'error');
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            isRecording = false;
+
+            const voiceBtn = document.getElementById('voiceBtn');
+            voiceBtn.textContent = '🎤';
+            voiceBtn.classList.remove('btn-recording');
+        }
+
+        function showMediaPreview(type, dataUrl, mimeType) {
+            pendingMedia = { type, dataUrl, mimeType };
+
+            const container = document.getElementById('mediaPreview');
+            const imageEl = document.getElementById('previewImage');
+            const audioEl = document.getElementById('previewAudio');
+
+            container.classList.remove('hidden');
+
+            if (type === 'image') {
+                imageEl.src = dataUrl;
+                imageEl.classList.remove('hidden');
+                audioEl.classList.add('hidden');
+            } else {
+                audioEl.src = dataUrl;
+                audioEl.classList.remove('hidden');
+                imageEl.classList.add('hidden');
+            }
+        }
+
+        function clearMediaPreview() {
+            pendingMedia = null;
+            const container = document.getElementById('mediaPreview');
+            container.classList.add('hidden');
+            document.getElementById('previewImage').classList.add('hidden');
+            document.getElementById('previewAudio').classList.add('hidden');
+        }
+
+        // Image modal
+        function showImageModal(src) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modalImg.src = src;
+            modal.classList.remove('hidden');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.add('hidden');
+        }
+
+        // Settings modal
+        function showSettings() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+            loadServerHistory();
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function closeSettingsIfBackground(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                closeSettings();
+            }
+        }
+
+        // Help modal
+        function showHelp() {
+            document.getElementById('helpModal').classList.remove('hidden');
+        }
+
+        function closeHelp() {
+            document.getElementById('helpModal').classList.add('hidden');
+        }
+
+        function closeHelpIfBackground(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                closeHelp();
+            }
+        }
+
+        async function showScanModal() {
+            document.getElementById('scanModal').classList.remove('hidden');
+            await startQrScanner();
+        }
+
+        function closeScanModal() {
+            stopQrScanner();
+            document.getElementById('scanModal').classList.add('hidden');
+        }
+
+        function closeScanIfBackground(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                closeScanModal();
+            }
+        }
+
+        function updateScanStatus(message) {
+            document.getElementById('scanStatus').textContent = message;
+        }
+
+        async function startQrScanner() {
+            const video = document.getElementById('scanVideo');
+            updateScanStatus('正在请求摄像头权限...');
+
+            try {
+                stopQrScanner();
+                qrScanStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' }
+                    },
+                    audio: false
+                });
+                video.srcObject = qrScanStream;
+                await video.play();
+                updateScanStatus('请把二维码放到取景框中央，识别成功后会自动连接。');
+                qrScanBusy = false;
+                runQrScanLoop();
+            } catch (error) {
+                console.error('Failed to start QR scanner:', error);
+                updateScanStatus('无法打开摄像头。你可以返回设置页，改用“二维码图片导入”或直接粘贴连接 URL。');
+                showNotification('摄像头扫码不可用，请改用图片导入或粘贴连接 URL', 'error');
+            }
+        }
+
+        function stopQrScanner() {
+            if (qrScanFrameId) {
+                cancelAnimationFrame(qrScanFrameId);
+                qrScanFrameId = null;
+            }
+
+            if (qrScanStream) {
+                qrScanStream.getTracks().forEach((track) => track.stop());
+                qrScanStream = null;
+            }
+
+            const video = document.getElementById('scanVideo');
+            if (video) {
+                video.pause();
+                video.srcObject = null;
+            }
+
+            qrScanBusy = false;
+        }
+
+        function runQrScanLoop() {
+            const video = document.getElementById('scanVideo');
+            if (!video || !qrScanStream) {
+                return;
+            }
+
+            qrScanFrameId = requestAnimationFrame(async () => {
+                if (!video.videoWidth || !video.videoHeight) {
+                    runQrScanLoop();
+                    return;
+                }
+
+                if (qrScanBusy) {
+                    runQrScanLoop();
+                    return;
+                }
+
+                qrScanBusy = true;
+                try {
+                    const qrText = await decodeQrFromCanvasSource(video, video.videoWidth, video.videoHeight);
+                    if (qrText) {
+                        document.getElementById('connectionImport').value = qrText;
+                        applyImportedConnection(qrText, { connectNow: true });
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Failed to scan QR frame:', error);
+                } finally {
+                    qrScanBusy = false;
+                }
+
+                runQrScanLoop();
+            });
+        }
+
+        // Notifications
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+
+            let title = '提示';
+            if (type === 'success') title = '成功';
+            if (type === 'error') title = '错误';
+
+            notification.innerHTML = `
+                <div class="notification-title">${title}</div>
+                <div class="notification-message">${escapeHtml(message)}</div>
+            `;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Keyboard shortcuts
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeImageModal();
+                closeSettings();
+                closeHelp();
+                closeScanModal();
+            }
+        });
+    </script>
+</body>
+</html>
