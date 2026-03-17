@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Basic integration test for Generic Channel
+ * Basic integration test for Clawline
  * This script verifies that all modules can be imported and basic types work
  */
 
 import { genericPlugin } from './src/generic/channel.ts';
 import { GenericChannelConfigSchema } from './src/generic/config-schema.ts';
 
-console.log('🧪 Testing Generic Channel Implementation...\n');
+console.log('🧪 Testing Clawline Implementation...\n');
 
 // Test 1: Plugin registration
 console.log('✅ Test 1: Plugin can be imported');
@@ -77,7 +77,7 @@ const schema = genericPlugin.configSchema.schema;
 console.log('   Schema type:', schema.type);
 console.log('   Available properties:', Object.keys(schema.properties || {}).join(', '));
 
-console.log('\n🎉 All tests passed! Generic Channel is ready to use.\n');
+console.log('\n🎉 All tests passed! Clawline is ready to use.\n');
 console.log('📖 Next steps:');
 console.log('   1. Configure the channel in your OpenClaw config');
 console.log('   2. Start OpenClaw with the channel enabled');
