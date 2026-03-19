@@ -291,6 +291,15 @@ async function monitorWebSocket(params: {
         connectedSocketCount: stats.connectedSocketCount,
         connectedChats: data.includeChats ? stats.connectedChats : undefined,
         timestamp: Date.now(),
+        // New: Enhanced Server Info
+        server: {
+          uptime: process.uptime(),
+          node: process.version,
+          platform: process.platform,
+          memory: process.memoryUsage(),
+          pid: process.pid,
+          time: new Date().toISOString(),
+        }
       },
     });
   };
