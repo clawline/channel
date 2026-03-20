@@ -206,3 +206,35 @@ export async function sendMediaGeneric(params: {
     agentId,
   });
 }
+
+// Send streaming text delta to client
+export async function sendStreamDelta(params: {
+  cfg: OpenClawConfig;
+  to: string;
+  text: string;
+  done?: boolean;
+}): Promise<void> {
+  const { cfg, to, text, done = false } = params;
+  const genericCfg = cfg.channels?.["clawline"] as GenericChannelConfig | undefined;
+
+  if (!genericCfg) {
+    return;
+  }
+
+  const target = normalizeTarget(to);
+
+  if (genericCfg.connectionMode === "websocket" || genericCfg.connectionMode === "relay") {
+    const wsManager = getGenericWSManager();
+    if (wsManager) {
+      wsManager.sendToClient(target.chatId, {
+        type: "text.delta" as WSEventType,
+        data: {
+          chatId: target.chatId,
+          text,
+          done,
+          timestamp: Date.now(),
+        },
+      });
+    }
+  }
+}

@@ -328,6 +328,7 @@ export async function handleGenericMessage(params: {
       chatId: ctx.chatId,
       chatType: ctx.chatType,
       replyToMessageId: ctx.messageId,
+      sessionKey: route.sessionKey,
     });
 
     log(`generic: dispatching to agent (session=${route.sessionKey})`);

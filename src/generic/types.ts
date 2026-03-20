@@ -187,6 +187,7 @@ export type WSEventType =
   | "thinking.start"
   | "thinking.update"
   | "thinking.end"
+  | "text.delta"
   | "reaction.add"
   | "reaction.remove"
   | "status.sent"

@@ -8,7 +8,7 @@ import {
 } from "openclaw/plugin-sdk";
 import type { GenericChannelConfig } from "./types.js";
 import { getGenericRuntime } from "./runtime.js";
-import { sendMessageGeneric, sendThinkingIndicator } from "./send.js";
+import { sendMessageGeneric, sendThinkingIndicator, sendStreamDelta } from "./send.js";
 
 export type CreateGenericReplyDispatcherParams = {
   cfg: OpenClawConfig;
@@ -17,11 +17,12 @@ export type CreateGenericReplyDispatcherParams = {
   chatId: string;
   chatType: "direct" | "group";
   replyToMessageId?: string;
+  sessionKey?: string;
 };
 
 export function createGenericReplyDispatcher(params: CreateGenericReplyDispatcherParams) {
   const core = getGenericRuntime();
-  const { cfg, agentId, chatId, chatType, replyToMessageId } = params;
+  const { cfg, agentId, chatId, chatType, replyToMessageId, sessionKey } = params;
 
   const prefixContext = createReplyPrefixContext({
     cfg,
@@ -29,11 +30,9 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
   });
   const genericCfg = cfg.channels?.["clawline"] as GenericChannelConfig | undefined;
 
-  // Generic channel typing/thinking indicator
   const typingCallbacks = createTypingCallbacks({
     start: async () => {
       params.runtime.log?.(`generic: thinking started`);
-      // Send thinking indicator to the client
       await sendThinkingIndicator({
         cfg,
         to: `chat:${chatId}`,
@@ -42,7 +41,6 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
     },
     stop: async () => {
       params.runtime.log?.(`generic: thinking stopped`);
-      // Send thinking end indicator to the client
       await sendThinkingIndicator({
         cfg,
         to: `chat:${chatId}`,
@@ -77,6 +75,9 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
       }),
   );
 
+  const streamingEnabled = (genericCfg as GenericChannelConfig & { streaming?: { enabled?: boolean } } | undefined)
+    ?.streaming?.enabled !== false;
+
   const { dispatcher, replyOptions, markDispatchIdle } =
     core.channel.reply.createReplyDispatcherWithTyping({
       responsePrefix: prefixContext.responsePrefix,
@@ -92,7 +93,15 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
           return;
         }
 
-        // Chunk text if needed
+        if (streamingEnabled) {
+          await sendStreamDelta({
+            cfg,
+            to: `chat:${chatId}`,
+            text: "",
+            done: true,
+          });
+        }
+
         const chunks = core.channel.text.chunkMarkdownText(text, textChunkLimit);
 
         for (const chunk of chunks) {
@@ -113,9 +122,31 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
       onIdle: typingCallbacks.onIdle,
     });
 
+  // Use onPartialReply for streaming deltas — official OpenClaw SDK mechanism
+  // Source: pi-embedded-subscribe.handlers.messages.ts calls ctx.params.onPartialReply(data)
+  if (streamingEnabled) {
+    params.runtime.log?.(`generic: streaming enabled, injecting onPartialReply for chatId=${chatId}`);
+    (replyOptions as any).onPartialReply = (payload: ReplyPayload) => {
+      const delta = payload.text;
+      if (!delta) return;
+      sendStreamDelta({
+        cfg,
+        to: `chat:${chatId}`,
+        text: delta,
+      }).catch((err) => {
+        params.runtime.log?.(`generic: stream delta send error: ${err}`);
+      });
+    };
+  }
+
+  params.runtime.log?.(`generic: streaming=${streamingEnabled}, sessionKey=${sessionKey ?? "none"}`);
+
   return {
     dispatcher,
     replyOptions,
     markDispatchIdle,
+    cleanup: () => {
+      // onPartialReply is scoped to replyOptions — no global listener to clean up
+    },
   };
 }
