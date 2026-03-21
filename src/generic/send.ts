@@ -5,6 +5,7 @@ import { getGenericWSManager } from "./client.js";
 import { appendOutboundHistoryMessage } from "./history.js";
 import { inferMimeTypeFromSource } from "./media.js";
 import { updateMessageStatus } from "./message-status.js";
+import { resolveGenericAgentModel } from "./agents.js";
 
 export type SendGenericMessageParams = {
   cfg: OpenClawConfig;
@@ -80,6 +81,15 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
     mimeType,
   });
 
+  // Auto-fill meta.model from agent config when not explicitly provided
+  const resolvedMeta = (() => {
+    if (!agentId) return meta;
+    const configModel = resolveGenericAgentModel(cfg, agentId);
+    if (!configModel) return meta;
+    if (meta?.model) return meta;
+    return { ...meta, model: configModel };
+  })();
+
   const outboundMessage: OutboundMessage = {
     messageId,
     chatId: target.chatId,
@@ -89,7 +99,7 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
     mimeType: resolvedMedia.mimeType,
     replyTo: replyToMessageId,
     timestamp: Date.now(),
-    meta,
+    meta: resolvedMeta,
   };
 
   // Send via live socket transports in websocket/relay mode.
@@ -158,8 +168,9 @@ export async function sendThinkingIndicator(params: {
   to: string;
   eventType: "thinking.start" | "thinking.update" | "thinking.end";
   content?: string;
+  agentId?: string;
 }): Promise<void> {
-  const { cfg, to, eventType, content = "" } = params;
+  const { cfg, to, eventType, content = "", agentId } = params;
   const genericCfg = cfg.channels?.["clawline"] as GenericChannelConfig | undefined;
 
   if (!genericCfg) {
@@ -176,6 +187,7 @@ export async function sendThinkingIndicator(params: {
         data: {
           chatId: target.chatId,
           content,
+          agentId,
           timestamp: Date.now(),
         },
       });

@@ -329,6 +329,12 @@ export function resolveGenericAgentWorkspaceCandidates(cfg: OpenClawConfig, agen
   return Array.from(candidates);
 }
 
+export function resolveGenericAgentModel(cfg: OpenClawConfig, agentId: string): string | undefined {
+  const normalizedId = normalizeAgentId(agentId);
+  const { agents } = resolveConfiguredAgents(cfg);
+  return agents.find((agent) => agent.id === normalizedId)?.model;
+}
+
 export function resolveGenericAgentId(
   cfg: OpenClawConfig,
   requestedAgentId?: string | null,

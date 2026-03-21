@@ -37,7 +37,7 @@ export type MonitorGenericOpts = {
 };
 
 let currentWSManager: ReturnType<typeof createGenericWSManager> | null = null;
-const AGENT_CONTEXT_FILENAMES = ["SOUL.md", "IDENTITY.md", "USER.md", "CONTEXT.md", "AGENTS.md"] as const;
+const AGENT_CONTEXT_FILENAMES = ["SOUL.md", "IDENTITY.md", "USER.md", "CONTEXT.md", "AGENTS.md", "TOOLS.md", "HEARTBEAT.md"] as const;
 
 async function readAgentContextFilesFromWorkspace(workspaceDir: string): Promise<AgentContextFile[]> {
   const files = await Promise.all(
