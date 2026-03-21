@@ -1,5 +1,6 @@
 import os from "node:os";
 import path from "node:path";
+import { readdirSync } from "node:fs";
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk";
 import type { AgentListItem } from "./types.js";
@@ -75,6 +76,50 @@ function resolveSkillNames(skills: unknown): string[] {
     .filter((name): name is string => Boolean(name));
 
   return Array.from(new Set(names));
+}
+
+/** Scan filesystem for installed skill directory names */
+function scanInstalledSkills(workspace?: string, agentId?: string): string[] {
+  const dirs: string[] = [];
+  // Global skills: ~/.openclaw/skills/
+  const globalDir = path.join(os.homedir(), ".openclaw", "skills");
+  try {
+    const entries = readdirSync(globalDir, { withFileTypes: true });
+    for (const e of entries) {
+      if (e.isDirectory()) dirs.push(e.name);
+    }
+  } catch {
+    /* ignore */
+  }
+  // npm-installed skills
+  const npmDir = path.join(os.homedir(), ".npm-global", "lib", "node_modules", "openclaw", "skills");
+  try {
+    const entries = readdirSync(npmDir, { withFileTypes: true });
+    for (const e of entries) {
+      if (e.isDirectory()) dirs.push(e.name);
+    }
+  } catch {
+    /* ignore */
+  }
+  // Workspace skills (explicit path or inferred from agentId)
+  const wsPaths: string[] = [];
+  if (workspace) {
+    wsPaths.push(path.join(resolveUserPathLike(workspace), "skills"));
+  }
+  if (agentId) {
+    wsPaths.push(path.join(os.homedir(), ".openclaw", `workspace-${agentId}`, "skills"));
+  }
+  for (const wsDir of wsPaths) {
+    try {
+      const entries = readdirSync(wsDir, { withFileTypes: true });
+      for (const e of entries) {
+        if (e.isDirectory() && !dirs.includes(e.name)) dirs.push(e.name);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return Array.from(new Set(dirs));
 }
 
 function resolveUserPathLike(rawPath: string): string {
@@ -160,7 +205,12 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
           typeof agent?.identity?.description === "string" && agent.identity.description.trim()
             ? agent.identity.description.trim()
             : undefined,
-        skills: resolveSkillNames(agent?.skills),
+        skills: resolveSkillNames(agent?.skills).length > 0
+          ? resolveSkillNames(agent?.skills)
+          : scanInstalledSkills(
+              typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
+              normalizedId,
+            ),
         workspace:
           typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
         status: "online" as const,
