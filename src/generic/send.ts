@@ -6,6 +6,7 @@ import { appendOutboundHistoryMessage } from "./history.js";
 import { inferMimeTypeFromSource } from "./media.js";
 import { updateMessageStatus } from "./message-status.js";
 import { resolveGenericAgentModel } from "./agents.js";
+import { basename } from "node:path";
 
 export type SendGenericMessageParams = {
   cfg: OpenClawConfig;
@@ -23,24 +24,58 @@ export type SendGenericMessageParams = {
 async function resolveOutboundMediaUrl(params: {
   mediaUrl?: string;
   mimeType?: string;
+  relayConfig?: GenericChannelConfig["relay"];
 }): Promise<{ mediaUrl?: string; mimeType?: string }> {
-  const { mediaUrl, mimeType } = params;
+  const { mediaUrl, mimeType, relayConfig } = params;
 
   if (!mediaUrl) {
     return { mediaUrl, mimeType };
   }
 
-  if (/^(data:|https?:\/\/)/i.test(mediaUrl)) {
+  // Already a URL or data URI — pass through
+  if (/^(https?:\/\/)/i.test(mediaUrl)) {
     return {
       mediaUrl,
       mimeType: mimeType ?? inferMimeTypeFromSource(mediaUrl),
     };
   }
 
+  // data: URI — if relay is available, upload it; otherwise pass through
+  if (/^data:/i.test(mediaUrl)) {
+    if (relayConfig?.url && relayConfig?.secret) {
+      try {
+        const uploaded = await uploadToRelay(mediaUrl, "file", relayConfig);
+        if (uploaded) return uploaded;
+      } catch (err) {
+        console.warn("[clawline] relay upload failed for data URI, falling back:", err);
+      }
+    }
+    return {
+      mediaUrl,
+      mimeType: mimeType ?? inferMimeTypeFromSource(mediaUrl),
+    };
+  }
+
+  // Local file path — read and upload to relay (preferred) or convert to base64
   try {
     await access(mediaUrl);
     const buffer = await readFile(mediaUrl);
     const resolvedMimeType = mimeType ?? inferMimeTypeFromSource(mediaUrl) ?? "application/octet-stream";
+    const fileName = basename(mediaUrl);
+
+    // Try relay upload first
+    if (relayConfig?.url && relayConfig?.secret) {
+      try {
+        const base64Data = buffer.toString("base64");
+        const dataUri = `data:${resolvedMimeType};base64,${base64Data}`;
+        const uploaded = await uploadToRelay(dataUri, fileName, relayConfig);
+        if (uploaded) return uploaded;
+      } catch (err) {
+        console.warn("[clawline] relay upload failed, falling back to base64:", err);
+      }
+    }
+
+    // Fallback: inline base64 data URI
     return {
       mediaUrl: `data:${resolvedMimeType};base64,${buffer.toString("base64")}`,
       mimeType: resolvedMimeType,
@@ -51,6 +86,51 @@ async function resolveOutboundMediaUrl(params: {
       mimeType: mimeType ?? inferMimeTypeFromSource(mediaUrl),
     };
   }
+}
+
+/** Upload a data URI or base64 to the relay server, return the public URL */
+async function uploadToRelay(
+  dataOrDataUri: string,
+  fileName: string,
+  relayConfig: NonNullable<GenericChannelConfig["relay"]>,
+): Promise<{ mediaUrl: string; mimeType: string } | null> {
+  // Derive HTTP base URL from relay WSS URL: wss://relay.restry.cn/backend → https://relay.restry.cn
+  const relayWsUrl = relayConfig.url;
+  const httpUrl = relayWsUrl
+    .replace(/^wss:/, "https:")
+    .replace(/^ws:/, "http:")
+    .replace(/\/backend\/?$/, "")
+    .replace(/\/client\/?$/, "");
+
+  const base64Match = dataOrDataUri.match(/^data:([^;]+);base64,(.+)$/s);
+  const mimeType = base64Match?.[1] || "application/octet-stream";
+  const base64Data = base64Match?.[2] || dataOrDataUri;
+
+  const res = await fetch(`${httpUrl}/api/media/upload`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-channel-secret": relayConfig.secret,
+    },
+    body: JSON.stringify({
+      data: base64Data,
+      filename: fileName,
+      mimeType,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.warn(`[clawline] relay upload returned ${res.status}: ${text}`);
+    return null;
+  }
+
+  const result = (await res.json()) as { ok: boolean; url?: string; mimeType?: string };
+  if (result.ok && result.url) {
+    console.log(`[clawline] uploaded media to relay: ${result.url}`);
+    return { mediaUrl: result.url, mimeType: result.mimeType || mimeType };
+  }
+  return null;
 }
 
 function normalizeTarget(to: string): { chatId: string; type: "user" | "chat" } {
@@ -79,6 +159,7 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
   const resolvedMedia = await resolveOutboundMediaUrl({
     mediaUrl,
     mimeType,
+    relayConfig: genericCfg.relay,
   });
 
   // Auto-fill meta.model from agent config when not explicitly provided
