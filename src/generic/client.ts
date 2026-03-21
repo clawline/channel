@@ -7,6 +7,7 @@ import type {
   ChannelStatusRequest,
   HistoryRequest,
   AgentListRequest,
+  AgentContextRequest,
   AgentSelectRequest,
   ConversationListRequest,
 } from "./types.js";
@@ -103,6 +104,7 @@ export type UnpinMessageData = {
 export type ChannelStatusRequestData = ChannelStatusRequest;
 export type HistoryRequestData = HistoryRequest;
 export type AgentListRequestData = AgentListRequest;
+export type AgentContextRequestData = AgentContextRequest;
 export type AgentSelectRequestData = AgentSelectRequest;
 export type ConversationListRequestData = ConversationListRequest;
 
@@ -201,6 +203,11 @@ export interface GenericClientManager {
     chatId?: string;
     ws: WebSocket;
     data: AgentListRequestData;
+  }) => void;
+  onAgentContextRequest?: (params: {
+    chatId?: string;
+    ws: WebSocket;
+    data: AgentContextRequestData;
   }) => void;
   onAgentSelectRequest?: (params: {
     chatId?: string;
@@ -424,6 +431,25 @@ abstract class GenericClientManagerBase implements GenericClientManager {
             data: (message.data as AgentListRequestData | undefined) ?? {},
           });
           break;
+        case "agent.context.get": {
+          const request = (message.data as AgentContextRequestData | undefined) ?? ({} as AgentContextRequestData);
+          const requestedAgentId = String(request.agentId ?? "").trim();
+          if (!requestedAgentId) {
+            this.logRejectedEvent(sourceId, message.type, "missing agentId");
+            break;
+          }
+          if (!isGenericAgentAllowed({ allowedAgents: authUser?.allowAgents, requestedAgentId })) {
+            this.logRejectedEvent(sourceId, message.type, `agentId not allowed: ${requestedAgentId}`);
+            break;
+          }
+          request.agentId = requestedAgentId;
+          this.onAgentContextRequest?.({
+            chatId: state?.currentChatId,
+            ws,
+            data: request,
+          });
+          break;
+        }
         case "agent.select":
           this.onAgentSelectRequest?.({
             chatId: state?.currentChatId,
@@ -690,6 +716,11 @@ abstract class GenericClientManagerBase implements GenericClientManager {
     chatId?: string;
     ws: WebSocket;
     data: AgentListRequestData;
+  }) => void;
+  onAgentContextRequest?: (params: {
+    chatId?: string;
+    ws: WebSocket;
+    data: AgentContextRequestData;
   }) => void;
   onAgentSelectRequest?: (params: {
     chatId?: string;

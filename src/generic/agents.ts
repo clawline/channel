@@ -1,3 +1,5 @@
+import os from "node:os";
+import path from "node:path";
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk";
 import type { AgentListItem } from "./types.js";
@@ -18,6 +20,10 @@ type GenericAgentEntry = {
   identityName?: string;
   identityEmoji?: string;
   model?: string;
+  description?: string;
+  skills: string[];
+  status: "online" | "idle" | "busy";
+  workspace?: string;
 };
 
 function normalizeLowerToken(value?: string | null): string {
@@ -47,6 +53,34 @@ function normalizeAgentId(value?: string | null): string {
 function normalizeMainKey(value?: string | null): string {
   const trimmed = String(value ?? "").trim();
   return trimmed ? trimmed.toLowerCase() : DEFAULT_MAIN_KEY;
+}
+
+function resolveSkillNames(skills: unknown): string[] {
+  if (!Array.isArray(skills)) {
+    return [];
+  }
+
+  const names = skills
+    .map((skill) => {
+      if (typeof skill === "string") {
+        return skill.trim();
+      }
+
+      if (skill && typeof skill === "object" && typeof (skill as { name?: unknown }).name === "string") {
+        return (skill as { name: string }).name.trim();
+      }
+
+      return "";
+    })
+    .filter((name): name is string => Boolean(name));
+
+  return Array.from(new Set(names));
+}
+
+function resolveUserPathLike(rawPath: string): string {
+  const trimmed = rawPath.trim();
+  const expanded = trimmed.replace(/^~(?=$|[\\/])/, os.homedir());
+  return path.resolve(expanded);
 }
 
 function resolveLinkedPeerId(params: {
@@ -122,6 +156,14 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
             ? agent.identity.emoji.trim()
             : undefined,
         model: primaryModel?.trim() || undefined,
+        description:
+          typeof agent?.identity?.description === "string" && agent.identity.description.trim()
+            ? agent.identity.description.trim()
+            : undefined,
+        skills: resolveSkillNames(agent?.skills),
+        workspace:
+          typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
+        status: "online" as const,
         default: agent?.default === true,
       };
     })
@@ -140,6 +182,10 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
       identityName: agent.identityName,
       identityEmoji: agent.identityEmoji,
       model: agent.model,
+      description: agent.description,
+      skills: agent.skills,
+      status: agent.status,
+      workspace: agent.workspace,
       isDefault: false,
     });
   }
@@ -157,6 +203,8 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
           id: fallbackDefaultId,
           name: fallbackDefaultId,
           isDefault: true,
+          skills: [],
+          status: "online",
         },
       ],
     };
@@ -246,8 +294,39 @@ export function listGenericAgents(cfg: OpenClawConfig): {
       identityName: agent.identityName,
       identityEmoji: agent.identityEmoji,
       model: agent.model,
+      description: agent.description,
+      skills: agent.skills,
+      status: agent.status,
     })),
   };
+}
+
+export function resolveGenericAgentWorkspaceCandidates(cfg: OpenClawConfig, agentId: string): string[] {
+  const normalizedAgentId = normalizeAgentId(agentId);
+  const { agents, defaultAgentId } = resolveConfiguredAgents(cfg);
+  const matchedAgent = agents.find((agent) => agent.id === normalizedAgentId);
+  const candidates = new Set<string>();
+
+  if (matchedAgent?.workspace) {
+    candidates.add(resolveUserPathLike(matchedAgent.workspace));
+  }
+
+  const defaultsWorkspace =
+    typeof cfg.agents?.defaults?.workspace === "string" && cfg.agents.defaults.workspace.trim()
+      ? resolveUserPathLike(cfg.agents.defaults.workspace)
+      : undefined;
+
+  if (normalizedAgentId === defaultAgentId && defaultsWorkspace) {
+    candidates.add(defaultsWorkspace);
+  }
+
+  candidates.add(path.join(os.homedir(), ".openclaw", `workspace-${normalizedAgentId}`));
+
+  if (normalizedAgentId === defaultAgentId) {
+    candidates.add(path.join(os.homedir(), ".openclaw", "workspace"));
+  }
+
+  return Array.from(candidates);
 }
 
 export function resolveGenericAgentId(

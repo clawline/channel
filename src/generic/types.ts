@@ -30,6 +30,14 @@ export type InboundMessage = {
 };
 
 // Outbound message (Server → H5)
+export type OutboundMessageMeta = {
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  reasoningTokens?: number;
+  durationMs?: number;
+};
+
 export type OutboundMessage = {
   messageId: string;
   chatId: string;
@@ -41,6 +49,7 @@ export type OutboundMessage = {
   mimeType?: string;
   replyTo?: string;
   timestamp: number;
+  meta?: OutboundMessageMeta;
 };
 
 export type GenericMessageContext = {
@@ -110,6 +119,9 @@ export type AgentListItem = {
   identityName?: string;
   identityEmoji?: string;
   model?: string;
+  description?: string;
+  skills?: string[];
+  status?: "online" | "idle" | "busy";
 };
 
 export type AgentListResponse = {
@@ -117,6 +129,24 @@ export type AgentListResponse = {
   agents: AgentListItem[];
   defaultAgentId: string;
   selectedAgentId?: string;
+  timestamp: number;
+};
+
+export type AgentContextRequest = {
+  requestId?: string;
+  agentId: string;
+};
+
+export type AgentContextFile = {
+  name: string;
+  content: string;
+  updatedAt?: number;
+};
+
+export type AgentContextResponse = {
+  requestId?: string;
+  agentId: string;
+  files: AgentContextFile[];
   timestamp: number;
 };
 
@@ -169,6 +199,8 @@ export type WSEventType =
   | "history.get"
   | "agent.list.get"
   | "agent.list"
+  | "agent.context.get"
+  | "agent.context"
   | "agent.select"
   | "agent.selected"
   | "conversation.list.get"

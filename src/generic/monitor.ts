@@ -1,5 +1,7 @@
+import { readFile, stat } from "node:fs/promises";
+import path from "node:path";
 import type { OpenClawConfig, RuntimeEnv, HistoryEntry } from "openclaw/plugin-sdk";
-import type { GenericChannelConfig, InboundMessage } from "./types.js";
+import type { AgentContextFile, GenericChannelConfig, InboundMessage } from "./types.js";
 import {
   createGenericWSManager,
   destroyGenericWSManager,
@@ -24,7 +26,7 @@ import {
 import { handleGroupAction } from "./groups.js";
 import { handlePinMessage, handleUnpinMessage } from "./pins-stars.js";
 import { getConversationSummaries, getRecentHistoryMessages } from "./history.js";
-import { listGenericAgents, resolveGenericAgentId } from "./agents.js";
+import { listGenericAgents, resolveGenericAgentId, resolveGenericAgentWorkspaceCandidates } from "./agents.js";
 import { isGenericAgentAllowed } from "./auth.js";
 
 export type MonitorGenericOpts = {
@@ -35,6 +37,45 @@ export type MonitorGenericOpts = {
 };
 
 let currentWSManager: ReturnType<typeof createGenericWSManager> | null = null;
+const AGENT_CONTEXT_FILENAMES = ["SOUL.md", "IDENTITY.md", "USER.md", "CONTEXT.md", "AGENTS.md"] as const;
+
+async function readAgentContextFilesFromWorkspace(workspaceDir: string): Promise<AgentContextFile[]> {
+  const files = await Promise.all(
+    AGENT_CONTEXT_FILENAMES.map(async (name) => {
+      const filePath = path.join(workspaceDir, name);
+
+      try {
+        const [content, fileStats] = await Promise.all([readFile(filePath, "utf8"), stat(filePath)]);
+        return {
+          name,
+          content,
+          updatedAt: Number.isFinite(fileStats.mtimeMs) ? Math.round(fileStats.mtimeMs) : undefined,
+        } satisfies AgentContextFile;
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === "ENOENT" || code === "ENOTDIR") {
+          return undefined;
+        }
+        throw err;
+      }
+    }),
+  );
+
+  return files.flatMap((file) => (file ? [file] : []));
+}
+
+async function loadAgentContextFiles(cfg: OpenClawConfig, agentId: string): Promise<AgentContextFile[]> {
+  const workspaceCandidates = resolveGenericAgentWorkspaceCandidates(cfg, agentId);
+
+  for (const workspaceDir of workspaceCandidates) {
+    const files = await readAgentContextFilesFromWorkspace(workspaceDir);
+    if (files.length > 0) {
+      return files;
+    }
+  }
+
+  return [];
+}
 
 export async function monitorGenericProvider(opts: MonitorGenericOpts = {}): Promise<void> {
   const cfg = opts.config;
@@ -94,6 +135,35 @@ async function monitorWebSocket(params: {
         agents: visibleAgents,
         defaultAgentId: visibleDefaultAgentId,
         selectedAgentId,
+        timestamp: Date.now(),
+      },
+    });
+  };
+
+  const sendAgentContext = async (params: {
+    ws: Parameters<typeof wsManager.sendDirect>[0];
+    requestId?: string;
+    agentId: string;
+  }) => {
+    const requestedAgentId = String(params.agentId ?? "").trim();
+    const resolvedAgentId = resolveGenericAgentId(cfg, requestedAgentId);
+    const responseAgentId = resolvedAgentId ?? requestedAgentId;
+    const allowedAgentIds = wsManager.getAllowedAgentIds(params.ws);
+    const files =
+      resolvedAgentId &&
+      isGenericAgentAllowed({
+        allowedAgents: allowedAgentIds,
+        requestedAgentId: resolvedAgentId,
+      })
+        ? await loadAgentContextFiles(cfg, resolvedAgentId)
+        : [];
+
+    wsManager.sendDirect(params.ws, {
+      type: "agent.context",
+      data: {
+        requestId: params.requestId,
+        agentId: responseAgentId,
+        files,
         timestamp: Date.now(),
       },
     });
@@ -207,6 +277,16 @@ async function monitorWebSocket(params: {
 
   wsManager.onAgentListRequest = ({ ws, data }) => {
     sendAgentList(ws, data.requestId);
+  };
+
+  wsManager.onAgentContextRequest = ({ ws, data }) => {
+    sendAgentContext({
+      ws,
+      requestId: data.requestId,
+      agentId: data.agentId,
+    }).catch((err) => {
+      error(`generic: error handling agent context request: ${String(err)}`);
+    });
   };
 
   wsManager.onHistoryRequest = ({ ws, data }) => {
