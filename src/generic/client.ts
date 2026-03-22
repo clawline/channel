@@ -365,7 +365,11 @@ abstract class GenericClientManagerBase implements GenericClientManager {
 
       switch (message.type) {
         case "message.receive": {
-          const inbound = message.data as InboundMessage;
+          const inbound = message.data as InboundMessage | undefined;
+          if (!inbound) {
+            this.logRejectedEvent(sourceId, message.type, "missing message data");
+            break;
+          }
           const resolvedChatId = this.resolveTargetChatId({
             ws,
             incomingChatId: inbound.chatId,

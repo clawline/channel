@@ -84,13 +84,13 @@ async function readPairingAllowFromStore(params: {
 
 export function parseGenericMessage(message: InboundMessage): GenericMessageContext {
   return {
-    chatId: message.chatId,
-    messageId: message.messageId,
-    senderId: message.senderId,
+    chatId: message.chatId ?? "",
+    messageId: message.messageId ?? "",
+    senderId: message.senderId ?? "",
     senderName: message.senderName,
-    chatType: message.chatType,
-    content: message.content,
-    contentType: message.messageType,
+    chatType: message.chatType ?? "direct",
+    content: message.content ?? "",
+    contentType: message.messageType ?? "text",
     mediaUrl: message.mediaUrl,
     mimeType: message.mimeType,
     parentId: message.parentId,
