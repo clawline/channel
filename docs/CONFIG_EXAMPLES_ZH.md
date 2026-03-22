@@ -8,12 +8,12 @@
 
 **方式 A：使用 OpenClaw CLI（推荐）**
 ```bash
-openclaw plugins install @restry/clawline
+openclaw plugins install @clawlines/clawline
 ```
 
 **方式 B：使用 npm**
 ```bash
-npm install @restry/clawline
+npm install @clawlines/clawline
 ```
 
 ### 第二步：插件位置
@@ -97,7 +97,7 @@ openclaw gateway restart
 #### 方式 A：使用自带的示例客户端
 
 1. 找到示例客户端文件：
-   - 如果通过 npm 安装：`node_modules/@restry/clawline/examples/h5-client.html`
+   - 如果通过 npm 安装：`node_modules/@clawlines/clawline/examples/h5-client.html`
    - 如果通过 OpenClaw 安装：`~/.openclaw/extensions/clawline/examples/h5-client.html`
 
 2. 在浏览器中打开 `h5-client.html`（双击或使用 `file://` URL）
@@ -437,7 +437,7 @@ server {
 FROM node:20
 WORKDIR /app
 RUN npm install -g openclaw
-RUN openclaw plugins install @restry/clawline
+RUN openclaw plugins install @clawlines/clawline
 EXPOSE 8080
 CMD ["openclaw", "gateway", "start"]
 ```

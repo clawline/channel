@@ -8,12 +8,12 @@ Choose one of the following methods:
 
 **Option A: Using OpenClaw CLI (Recommended)**
 ```bash
-openclaw plugins install @restry/clawline
+openclaw plugins install @clawlines/clawline
 ```
 
 **Option B: Using npm**
 ```bash
-npm install @restry/clawline
+npm install @clawlines/clawline
 ```
 
 ### Step 2: Plugin Location
@@ -97,7 +97,7 @@ There are two ways to connect:
 #### Option A: Use the Included Example Client
 
 1. Locate the example client file:
-   - If installed via npm: `node_modules/@restry/clawline/examples/h5-client.html`
+   - If installed via npm: `node_modules/@clawlines/clawline/examples/h5-client.html`
    - If installed via OpenClaw: `~/.openclaw/extensions/clawline/examples/h5-client.html`
 
 2. Open `h5-client.html` in your web browser (double-click or use `file://` URL)
@@ -410,7 +410,7 @@ server {
 FROM node:20
 WORKDIR /app
 RUN npm install -g openclaw
-RUN openclaw plugins install @restry/clawline
+RUN openclaw plugins install @clawlines/clawline
 EXPOSE 8080
 CMD ["openclaw", "gateway", "start"]
 ```

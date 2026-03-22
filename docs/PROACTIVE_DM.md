@@ -48,7 +48,7 @@ OpenClaw Agent 可以使用内置的消息工具主动发送消息到任何已�
 如果你需要在代码中主动发送消息（例如定时任务、webhook 触发等），可以直接使用导出的 API：
 
 ```typescript
-import { sendMessageGeneric } from '@restry/clawline';
+import { sendMessageGeneric } from '@clawlines/clawline';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk';
 
 // 获取 OpenClaw 配置
@@ -80,7 +80,7 @@ await sendMessageGeneric({
 #### 方法 3：发送媒体消息
 
 ```typescript
-import { sendMediaGeneric } from '@restry/clawline';
+import { sendMediaGeneric } from '@clawlines/clawline';
 
 // 发送图片
 await sendMediaGeneric({
@@ -123,7 +123,7 @@ Clawline 支持以下目标格式：
 ### 完整示例：定时提醒系统
 
 ```typescript
-import { sendMessageGeneric } from '@restry/clawline';
+import { sendMessageGeneric } from '@clawlines/clawline';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk';
 
 // 定时任务：每天早上 9 点发送提醒
@@ -206,7 +206,7 @@ channels:
 
 1. **检查客户端连接状态**：
    ```typescript
-   import { getGenericWSManager } from '@restry/clawline/src/generic/client.js';
+   import { getGenericWSManager } from '@clawlines/clawline/src/generic/client.js';
 
    const wsManager = getGenericWSManager();
    const isConnected = wsManager?.isClientConnected(chatId);
@@ -266,7 +266,7 @@ Please send a reminder message to user user-123
 If you need to send messages from code (e.g., scheduled tasks, webhook triggers), you can use the exported API directly:
 
 ```typescript
-import { sendMessageGeneric } from '@restry/clawline';
+import { sendMessageGeneric } from '@clawlines/clawline';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk';
 
 // Get OpenClaw config
@@ -298,7 +298,7 @@ await sendMessageGeneric({
 #### Method 3: Send Media Messages
 
 ```typescript
-import { sendMediaGeneric } from '@restry/clawline';
+import { sendMediaGeneric } from '@clawlines/clawline';
 
 // Send image
 await sendMediaGeneric({
@@ -341,7 +341,7 @@ Clawline supports the following target formats:
 ### Complete Example: Scheduled Reminder System
 
 ```typescript
-import { sendMessageGeneric } from '@restry/clawline';
+import { sendMessageGeneric } from '@clawlines/clawline';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk';
 
 // Scheduled task: Send reminder every day at 9 AM
@@ -423,7 +423,7 @@ channels:
 
 1. **Check Client Connection Status**:
    ```typescript
-   import { getGenericWSManager } from '@restry/clawline/src/generic/client.js';
+   import { getGenericWSManager } from '@clawlines/clawline/src/generic/client.js';
 
    const wsManager = getGenericWSManager();
    const isConnected = wsManager?.isClientConnected(chatId);
