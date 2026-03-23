@@ -216,12 +216,7 @@ async function monitorWebSocket(params: {
   wsManager.onClientConnect = ({ chatId, ws }) => {
     const requestedAgentId = wsManager.getSelectedAgentId(ws);
     if (!requestedAgentId) {
-      if (chatId) {
-        sendHistorySync({
-          ws,
-          chatId,
-        });
-      }
+      // Don't send history.sync without agentId — client will selectAgent then requestHistory
       return;
     }
 
@@ -235,12 +230,7 @@ async function monitorWebSocket(params: {
         ok: false,
         error: `agentId not allowed: ${requestedAgentId}`,
       });
-      if (chatId) {
-        sendHistorySync({
-          ws,
-          chatId,
-        });
-      }
+      // Don't send history.sync — agent not allowed, client doesn't know which agent's history to show
       return;
     }
 
@@ -268,12 +258,7 @@ async function monitorWebSocket(params: {
       ok: false,
       error: `Unknown agentId: ${requestedAgentId}`,
     });
-    if (chatId) {
-      sendHistorySync({
-        ws,
-        chatId,
-      });
-    }
+    // Don't send history.sync — unknown agent, no valid agentId to filter by
   };
 
   wsManager.onAgentListRequest = ({ ws, data }) => {
