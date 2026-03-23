@@ -108,12 +108,26 @@ export type AgentContextRequestData = AgentContextRequest;
 export type AgentSelectRequestData = AgentSelectRequest;
 export type ConversationListRequestData = ConversationListRequest;
 
+/** Per-agent pending buffer for events that arrived while client had a different agent selected. */
+type AgentPendingEntry = {
+  /** Accumulated streaming text (merged text.delta payloads). */
+  streamText: string;
+  /** Whether the streaming is done (received done=true or message.send). */
+  streamDone: boolean;
+  /** Final message.send event to deliver when client switches to this agent. */
+  finalMessage?: WSEvent;
+  /** Timestamp of last update (for TTL expiry). */
+  lastUpdate: number;
+};
+
 type ClientConnectionState = {
   connectionId: string;
   currentChatId?: string;
   subscribedChatIds: Set<string>;
   selectedAgentId?: string;
   authUser?: GenericAuthUser;
+  /** Per-agent pending buffer — key is agentId. */
+  pendingBuffer: Map<string, AgentPendingEntry>;
 };
 
 type ConnectionStats = {
@@ -170,6 +184,7 @@ export interface GenericClientManager {
   sendToClient(chatId: string, event: WSEvent): boolean;
   sendDirect(ws: WebSocket, event: WSEvent): void;
   broadcast(event: WSEvent): void;
+  flushPendingForAgent(ws: WebSocket, agentId: string): AgentPendingEntry | undefined;
   isClientConnected(chatId: string): boolean;
   getConnectedClients(): string[];
   getConnectionCount(chatId: string): number;
@@ -743,15 +758,89 @@ abstract class GenericClientManagerBase implements GenericClientManager {
       return false;
     }
 
+    const eventAgentId = (event.data as Record<string, unknown> | undefined)?.agentId as string | undefined;
     let sent = false;
+
     for (const ws of clients) {
-      if (this.isHandleOpen(ws)) {
-        this.sendEvent(ws, event);
-        sent = true;
+      if (!this.isHandleOpen(ws)) continue;
+
+      // Agent-level isolation: if the event carries an agentId, only deliver to clients
+      // that have selected that agent. Buffer the event for clients on a different agent
+      // so they can receive it when they switch back (断点续传).
+      if (eventAgentId) {
+        const wsAgentId = this.getSelectedAgentId(ws);
+        if (wsAgentId && wsAgentId !== eventAgentId) {
+          this.bufferPendingEvent(ws, eventAgentId, event);
+          continue;
+        }
       }
+
+      this.sendEvent(ws, event);
+      sent = true;
     }
 
     return sent;
+  }
+
+  /**
+   * Buffer an event for a specific agent on a WS connection.
+   * - text.delta events are merged into a single streamText string.
+   * - message.send events replace the finalMessage.
+   * - Buffers expire after 10 minutes to avoid memory leaks.
+   */
+  private bufferPendingEvent(ws: WebSocket, agentId: string, event: WSEvent): void {
+    const state = this.clientStates.get(ws);
+    if (!state) return;
+
+    const BUFFER_TTL_MS = 10 * 60 * 1000; // 10 minutes
+    const now = Date.now();
+
+    // Prune expired entries
+    for (const [id, entry] of state.pendingBuffer) {
+      if (now - entry.lastUpdate > BUFFER_TTL_MS) {
+        state.pendingBuffer.delete(id);
+      }
+    }
+
+    let entry = state.pendingBuffer.get(agentId);
+    if (!entry) {
+      entry = { streamText: "", streamDone: false, lastUpdate: now };
+      state.pendingBuffer.set(agentId, entry);
+    }
+    entry.lastUpdate = now;
+
+    const eventType = event.type;
+    const eventData = event.data as Record<string, unknown> | undefined;
+
+    if (eventType === "text.delta") {
+      const deltaText = (eventData?.text as string) ?? "";
+      const done = (eventData?.done as boolean) ?? false;
+      if (done) {
+        entry.streamDone = true;
+      } else {
+        entry.streamText += deltaText;
+      }
+    } else if (eventType === "message.send") {
+      entry.finalMessage = event;
+      entry.streamDone = true;
+      // Once we have the final message, streamText is no longer needed for delivery
+      // (the final message contains the complete text), but keep it for reference.
+    }
+  }
+
+  /**
+   * Flush pending events for a specific agent when client switches to it.
+   * Returns the pending entry and removes it from the buffer.
+   */
+  flushPendingForAgent(ws: WebSocket, agentId: string): AgentPendingEntry | undefined {
+    const state = this.clientStates.get(ws);
+    if (!state) return undefined;
+
+    const entry = state.pendingBuffer.get(agentId);
+    if (!entry) return undefined;
+
+    state.pendingBuffer.delete(agentId);
+    return entry;
   }
 
   sendDirect(ws: WebSocket, event: WSEvent): void {
@@ -855,6 +944,7 @@ class GenericWSManager extends GenericClientManagerBase {
         subscribedChatIds: new Set<string>(),
         selectedAgentId: agentId,
         authUser: authResult.authUser,
+        pendingBuffer: new Map(),
       });
       if (chatId) {
         this.subscribeClientToChat(ws, chatId);
@@ -1157,6 +1247,7 @@ class GenericRelayManager extends GenericClientManagerBase {
       subscribedChatIds: new Set<string>(),
       selectedAgentId: authResult.query.agentId,
       authUser: authResult.authUser,
+      pendingBuffer: new Map(),
     });
 
     if (chatId) {

@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import type { OpenClawConfig, RuntimeEnv, HistoryEntry } from "openclaw/plugin-sdk";
-import type { AgentContextFile, GenericChannelConfig, InboundMessage } from "./types.js";
+import type { AgentContextFile, GenericChannelConfig, InboundMessage, WSEventType } from "./types.js";
 import {
   createGenericWSManager,
   destroyGenericWSManager,
@@ -331,6 +331,31 @@ async function monitorWebSocket(params: {
       ok: true,
       selectedAgentId: resolvedAgentId,
     });
+
+    // Flush any buffered events for the newly selected agent (断点续传).
+    // If the previous agent was streaming while the user switched away,
+    // those events were buffered. Now deliver them.
+    const chatId = wsManager.getCurrentChatId(ws);
+    const pending = wsManager.flushPendingForAgent(ws, resolvedAgentId);
+    if (pending) {
+      // If we have a final message, deliver it directly (contains full text).
+      if (pending.finalMessage) {
+        wsManager.sendDirect(ws, pending.finalMessage);
+      } else if (pending.streamText) {
+        // Streaming was in progress when user switched away — deliver accumulated text
+        // as a single delta chunk so the client can render it, then continue streaming.
+        wsManager.sendDirect(ws, {
+          type: "text.delta" as WSEventType,
+          data: {
+            chatId: chatId ?? "",
+            text: pending.streamText,
+            done: pending.streamDone,
+            agentId: resolvedAgentId,
+            timestamp: Date.now(),
+          },
+        });
+      }
+    }
   };
 
   wsManager.onChannelStatusRequest = ({ chatId, ws, data }) => {
