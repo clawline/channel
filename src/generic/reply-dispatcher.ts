@@ -99,6 +99,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
             to: `chat:${chatId}`,
             text: "",
             done: true,
+            agentId,
           });
         }
 
@@ -133,6 +134,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         cfg,
         to: `chat:${chatId}`,
         text: delta,
+        agentId,
       }).catch((err) => {
         params.runtime.log?.(`generic: stream delta send error: ${err}`);
       });

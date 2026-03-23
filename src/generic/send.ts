@@ -311,8 +311,9 @@ export async function sendStreamDelta(params: {
   to: string;
   text: string;
   done?: boolean;
+  agentId?: string;
 }): Promise<void> {
-  const { cfg, to, text, done = false } = params;
+  const { cfg, to, text, done = false, agentId } = params;
   const genericCfg = cfg.channels?.["clawline"] as GenericChannelConfig | undefined;
 
   if (!genericCfg) {
@@ -331,6 +332,7 @@ export async function sendStreamDelta(params: {
           text,
           done,
           timestamp: Date.now(),
+          ...(agentId ? { agentId } : {}),
         },
       });
     }
