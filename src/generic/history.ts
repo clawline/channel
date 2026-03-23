@@ -262,9 +262,16 @@ function buildConversationSummary(chatId: string, history: HistoryMessageRecord[
     [...history].reverse().find((entry) => entry.chatType)?.chatType ??
     (chatId.startsWith("group-") ? "group" : "direct");
 
+  // Title = first user message truncated to 50 chars
+  const firstUserMessage = history.find((entry) => entry.direction === "sent");
+  const title = firstUserMessage?.content
+    ? firstUserMessage.content.replace(/\s+/g, " ").trim().slice(0, 50) + (firstUserMessage.content.length > 50 ? "…" : "")
+    : undefined;
+
   return {
     chatId,
     chatType,
+    title,
     lastMessageId: lastMessage.messageId,
     lastContent: lastMessage.content,
     lastContentType: lastMessage.contentType,
