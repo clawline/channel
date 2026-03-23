@@ -37,6 +37,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         cfg,
         to: `chat:${chatId}`,
         eventType: "thinking.start",
+        agentId,
       });
     },
     stop: async () => {
@@ -45,6 +46,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         cfg,
         to: `chat:${chatId}`,
         eventType: "thinking.end",
+        agentId,
       });
     },
     onStartError: (err) => {
