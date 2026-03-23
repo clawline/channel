@@ -7,6 +7,7 @@ import { inferMimeTypeFromSource } from "./media.js";
 import { updateMessageStatus } from "./message-status.js";
 import { resolveGenericAgentModel } from "./agents.js";
 import { basename } from "node:path";
+import { recordStreamDelta, markStreamCompleted } from "./stream-state.js";
 
 export type SendGenericMessageParams = {
   cfg: OpenClawConfig;
@@ -194,6 +195,11 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
       });
 
       if (sent) {
+        // Mark stream as completed at chat-level (断点续传)
+        if (agentId) {
+          markStreamCompleted(target.chatId, agentId);
+        }
+
         appendOutboundHistoryMessage(outboundMessage, {
           chatType,
           agentId,
@@ -326,6 +332,11 @@ export async function sendStreamDelta(params: {
   if (genericCfg.connectionMode === "websocket" || genericCfg.connectionMode === "relay") {
     const wsManager = getGenericWSManager();
     if (wsManager) {
+      // Record streaming state at chat-level for 断点续传 across disconnections.
+      if (agentId) {
+        recordStreamDelta(target.chatId, agentId, text, done);
+      }
+
       wsManager.sendToClient(target.chatId, {
         type: "text.delta" as WSEventType,
         data: {

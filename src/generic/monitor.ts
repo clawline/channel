@@ -28,6 +28,7 @@ import { handlePinMessage, handleUnpinMessage } from "./pins-stars.js";
 import { getConversationSummaries, getRecentHistoryMessages } from "./history.js";
 import { listGenericAgents, resolveGenericAgentId, resolveGenericAgentWorkspaceCandidates } from "./agents.js";
 import { isGenericAgentAllowed } from "./auth.js";
+import { consumeStreamState, pruneExpiredStreams } from "./stream-state.js";
 
 export type MonitorGenericOpts = {
   config?: OpenClawConfig;
@@ -248,6 +249,23 @@ async function monitorWebSocket(params: {
           chatId,
           agentId: resolvedAgentId,
         });
+
+        // Check for interrupted stream state (断点续传 on reconnect with agentId in URL)
+        const streamState = consumeStreamState(chatId, resolvedAgentId);
+        if (streamState && streamState.streamText) {
+          wsManager.sendDirect(ws, {
+            type: "stream.resume" as WSEventType,
+            data: {
+              chatId,
+              agentId: resolvedAgentId,
+              text: streamState.streamText,
+              isComplete: streamState.completed,
+              startTime: streamState.startTime,
+              timestamp: Date.now(),
+            },
+          });
+          log(`generic: stream.resume sent on connect for ${resolvedAgentId} (${streamState.streamText.length} chars)`);
+        }
       }
       return;
     }
@@ -354,6 +372,24 @@ async function monitorWebSocket(params: {
             timestamp: Date.now(),
           },
         });
+      }
+    } else if (chatId) {
+      // No per-connection buffer — check chat-level stream state (断点续传 across disconnections).
+      // This covers the case where the browser was closed mid-stream and the client reconnects.
+      const streamState = consumeStreamState(chatId, resolvedAgentId);
+      if (streamState && streamState.streamText) {
+        wsManager.sendDirect(ws, {
+          type: "stream.resume" as WSEventType,
+          data: {
+            chatId,
+            agentId: resolvedAgentId,
+            text: streamState.streamText,
+            isComplete: streamState.completed,
+            startTime: streamState.startTime,
+            timestamp: Date.now(),
+          },
+        });
+        log(`generic: stream.resume sent for ${resolvedAgentId} (${streamState.streamText.length} chars, complete=${streamState.completed})`);
       }
     }
   };
@@ -650,8 +686,14 @@ async function monitorWebSocket(params: {
   // Start the WebSocket server
   wsManager.start();
 
+  // Periodically prune expired chat-level stream state (every 5 minutes)
+  const streamPruneInterval = setInterval(() => {
+    pruneExpiredStreams();
+  }, 5 * 60 * 1000);
+
   return new Promise((resolve, reject) => {
     const cleanup = () => {
+      clearInterval(streamPruneInterval);
       if (currentWSManager === wsManager) {
         destroyGenericWSManager();
         currentWSManager = null;

@@ -223,6 +223,7 @@ export type WSEventType =
   | "thinking.update"
   | "thinking.end"
   | "text.delta"
+  | "stream.resume"
   | "reaction.add"
   | "reaction.remove"
   | "status.sent"
