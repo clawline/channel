@@ -175,20 +175,24 @@ async function monitorWebSocket(params: {
     chatId: string;
     requestId?: string;
     limit?: number;
+    before?: number;
     agentId?: string;
   }) => {
-    const historyLimit = Math.max(0, params.limit ?? genericCfg.historyLimit ?? 10);
+    const historyLimit = Math.max(0, params.limit ?? genericCfg.historyLimit ?? 50);
+    const messages = getRecentHistoryMessages({
+      chatId: params.chatId,
+      limit: historyLimit,
+      before: params.before,
+      agentId: params.agentId,
+    });
     wsManager.sendDirect(params.ws, {
       type: "history.sync",
       data: {
         requestId: params.requestId,
         chatId: params.chatId,
         agentId: params.agentId,
-        messages: getRecentHistoryMessages({
-          chatId: params.chatId,
-          limit: historyLimit,
-          agentId: params.agentId,
-        }),
+        messages,
+        hasMore: messages.length >= historyLimit,
         timestamp: Date.now(),
       },
     });
@@ -299,6 +303,7 @@ async function monitorWebSocket(params: {
       chatId: data.chatId,
       requestId: data.requestId,
       limit: data.limit,
+      before: data.before,
       agentId: data.agentId || wsManager.getSelectedAgentId(ws),
     });
   };

@@ -234,6 +234,7 @@ export function removeHistoryMessage(params: { chatId: string; messageId: string
 export function getRecentHistoryMessages(params: {
   chatId: string;
   limit?: number;
+  before?: number;
   agentId?: string;
 }): HistoryMessageRecord[] {
   const { chatId, limit = 20 } = params;
@@ -242,6 +243,12 @@ export function getRecentHistoryMessages(params: {
   const scopedHistory = normalizedAgentId
     ? history.filter((entry) => normalizeHistoryAgentId(entry.agentId) === normalizedAgentId)
     : history;
+
+  if (params.before) {
+    const beforeIdx = scopedHistory.findIndex((entry) => entry.timestamp >= params.before!);
+    const end = beforeIdx === -1 ? scopedHistory.length : beforeIdx;
+    return scopedHistory.slice(Math.max(0, end - limit), end);
+  }
 
   return scopedHistory.slice(-limit);
 }
