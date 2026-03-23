@@ -180,6 +180,7 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
     mimeType: resolvedMedia.mimeType,
     replyTo: replyToMessageId,
     timestamp: Date.now(),
+    ...(agentId ? { agentId } : {}),
     meta: resolvedMeta,
   };
 

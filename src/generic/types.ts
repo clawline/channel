@@ -49,6 +49,8 @@ export type OutboundMessage = {
   mimeType?: string;
   replyTo?: string;
   timestamp: number;
+  /** Agent that produced this message (for client-side isolation) */
+  agentId?: string;
   meta?: OutboundMessageMeta;
 };
 
