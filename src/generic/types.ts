@@ -106,6 +106,7 @@ export type HistoryRequest = {
   requestId?: string;
   chatId: string;
   limit?: number;
+  agentId?: string;
 };
 
 export type AgentListRequest = {

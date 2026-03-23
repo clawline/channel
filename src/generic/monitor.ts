@@ -296,7 +296,7 @@ async function monitorWebSocket(params: {
       chatId: data.chatId,
       requestId: data.requestId,
       limit: data.limit,
-      agentId: wsManager.getSelectedAgentId(ws),
+      agentId: data.agentId || wsManager.getSelectedAgentId(ws),
     });
   };
 
