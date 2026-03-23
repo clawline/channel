@@ -1,4 +1,10 @@
+import { timingSafeEqual } from "crypto";
 import type { GenericChannelConfig } from "./types.js";
+
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 export type GenericAuthUser = {
   id: string;
@@ -104,7 +110,7 @@ export function findGenericAuthUserByToken(params: {
     }
 
     const configuredToken = normalizeNonEmpty(entry.token);
-    if (!configuredToken || configuredToken !== token) {
+    if (!configuredToken || !safeCompare(configuredToken, token)) {
       continue;
     }
 
