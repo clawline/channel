@@ -182,6 +182,7 @@ async function monitorWebSocket(params: {
       data: {
         requestId: params.requestId,
         chatId: params.chatId,
+        agentId: params.agentId,
         messages: getRecentHistoryMessages({
           chatId: params.chatId,
           limit: historyLimit,
