@@ -818,7 +818,9 @@ abstract class GenericClientManagerBase implements GenericClientManager {
       if (done) {
         entry.streamDone = true;
       } else {
-        entry.streamText += deltaText;
+        // onPartialReply sends accumulated full text (not incremental deltas),
+        // so replace rather than append to avoid duplication on resume.
+        entry.streamText = deltaText;
       }
     } else if (eventType === "message.send") {
       entry.finalMessage = event;

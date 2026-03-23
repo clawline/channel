@@ -61,7 +61,9 @@ export function recordStreamDelta(chatId: string, agentId: string, text: string,
   }
 
   if (text) {
-    entry.streamText += text;
+    // onPartialReply sends accumulated full text (not incremental deltas),
+    // so replace rather than append to avoid duplication.
+    entry.streamText = text;
   }
   if (done) {
     entry.completed = true;
