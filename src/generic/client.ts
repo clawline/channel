@@ -1,5 +1,6 @@
 import { WebSocketServer, WebSocket, type RawData } from "ws";
 import type { Server as HTTPServer } from "http";
+import { z } from "zod";
 import type {
   GenericChannelConfig,
   WSEvent,
@@ -17,6 +18,7 @@ import {
   type GenericConnectionAuthResult,
   type GenericAuthUser,
 } from "./auth.js";
+import { ErrorCode, buildError, type StructuredError } from "./errors.js";
 import type { ForwardedMessage } from "./forwarding.js";
 import type { GroupAction } from "./groups.js";
 import type { UserPresence } from "./presence.js";
@@ -36,6 +38,86 @@ import {
   type RelayServerRejectFrame,
   type RelayTrustedAuthUser,
 } from "./relay-protocol.js";
+
+// ── Zod schemas for inbound message validation ──
+
+const MessageReceiveSchema = z.object({
+  messageId: z.string().min(1),
+  chatId: z.string().optional(),
+  chatType: z.enum(["direct", "group"]).optional(),
+  senderId: z.string().optional(),
+  senderName: z.string().optional(),
+  agentId: z.string().optional(),
+  messageType: z.enum(["text", "image", "voice", "audio", "file"]),
+  content: z.string(),
+  mediaUrl: z.string().optional(),
+  mimeType: z.string().optional(),
+  timestamp: z.number(),
+  parentId: z.string().optional(),
+});
+
+const TypingSchema = z.object({
+  chatId: z.string().optional(),
+  senderId: z.string().optional(),
+  senderName: z.string().optional(),
+  isTyping: z.boolean(),
+  timestamp: z.number().optional(),
+});
+
+const HistoryGetSchema = z.object({
+  requestId: z.string().optional(),
+  chatId: z.string().optional(),
+  limit: z.number().int().positive().optional(),
+  before: z.number().optional(),
+  agentId: z.string().optional(),
+});
+
+const AgentSelectSchema = z.object({
+  requestId: z.string().optional(),
+  agentId: z.string().nullable().optional(),
+});
+
+const ReactionSchema = z.object({
+  messageId: z.string().min(1),
+  chatId: z.string().optional(),
+  emoji: z.string().min(1).optional(),
+  emojiName: z.string().optional(),
+  senderId: z.string().optional(),
+  userId: z.string().optional(),
+});
+
+const InboundValidators: Partial<Record<string, z.ZodType<unknown>>> = {
+  "message.receive": MessageReceiveSchema,
+  typing: TypingSchema,
+  "history.get": HistoryGetSchema,
+  "agent.select": AgentSelectSchema,
+  "reaction.add": ReactionSchema,
+  "reaction.remove": ReactionSchema,
+};
+
+// ── Token-bucket rate limiter ──
+
+class TokenBucket {
+  private tokens: number;
+  private lastRefill: number;
+  constructor(
+    private readonly capacity: number,
+    private readonly refillRate: number, // tokens per ms
+  ) {
+    this.tokens = capacity;
+    this.lastRefill = Date.now();
+  }
+  consume(): boolean {
+    const now = Date.now();
+    this.tokens = Math.min(this.capacity, this.tokens + (now - this.lastRefill) * this.refillRate);
+    this.lastRefill = now;
+    if (this.tokens >= 1) {
+      this.tokens -= 1;
+      return true;
+    }
+    return false;
+  }
+}
 
 export type TypingIndicatorData = {
   chatId: string;
@@ -128,6 +210,10 @@ type ClientConnectionState = {
   authUser?: GenericAuthUser;
   /** Per-agent pending buffer — key is agentId. */
   pendingBuffer: Map<string, AgentPendingEntry>;
+  /** Token bucket rate limiter (30 msgs/min). */
+  rateLimiter: TokenBucket;
+  /** Missed pong count for WS-level ping/pong. */
+  missedPongs: number;
 };
 
 type ConnectionStats = {
@@ -377,6 +463,26 @@ abstract class GenericClientManagerBase implements GenericClientManager {
     try {
       const state = this.clientStates.get(ws);
       const authUser = state?.authUser;
+
+      // ── Rate limiting ──
+      if (state && !state.rateLimiter.consume()) {
+        this.sendEvent(ws, buildError(ErrorCode.RATE_LIMITED, "Rate limit exceeded. Max 30 messages per minute.") as unknown as WSEvent);
+        return;
+      }
+
+      // ── Zod validation ──
+      const validator = InboundValidators[message.type];
+      if (validator && message.data != null) {
+        const result = validator.safeParse(message.data);
+        if (!result.success) {
+          this.sendEvent(ws, buildError(
+            ErrorCode.INVALID_PAYLOAD,
+            `Invalid payload for ${message.type}`,
+            result.error.issues,
+          ) as unknown as WSEvent);
+          return;
+        }
+      }
 
       switch (message.type) {
         case "message.receive": {
@@ -947,6 +1053,8 @@ class GenericWSManager extends GenericClientManagerBase {
         selectedAgentId: agentId,
         authUser: authResult.authUser,
         pendingBuffer: new Map(),
+        rateLimiter: new TokenBucket(30, 30 / 60000),
+        missedPongs: 0,
       });
       if (chatId) {
         this.subscribeClientToChat(ws, chatId);
@@ -954,6 +1062,11 @@ class GenericWSManager extends GenericClientManagerBase {
 
       ws.on("message", (data: RawData) => {
         this.handleRawMessage(ws, connectionLabel, data);
+      });
+
+      ws.on("pong", () => {
+        const st = this.clientStates.get(ws);
+        if (st) st.missedPongs = 0;
       });
 
       ws.on("close", () => {
@@ -1014,9 +1127,17 @@ class GenericWSManager extends GenericClientManagerBase {
   protected override onHeartbeatTick(): void {
     this.clients.forEach((clients) => {
       for (const ws of clients) {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.ping();
+        if (ws.readyState !== WebSocket.OPEN) continue;
+        const state = this.clientStates.get(ws);
+        if (state) {
+          if (state.missedPongs >= 2) {
+            console.warn(`[generic] Terminating client ${state.connectionId}: missed 2 pongs`);
+            ws.terminate();
+            continue;
+          }
+          state.missedPongs++;
         }
+        ws.ping();
       }
     });
   }
@@ -1250,6 +1371,8 @@ class GenericRelayManager extends GenericClientManagerBase {
       selectedAgentId: authResult.query.agentId,
       authUser: authResult.authUser,
       pendingBuffer: new Map(),
+        rateLimiter: new TokenBucket(30, 30 / 60000),
+        missedPongs: 0,
     });
 
     if (chatId) {
