@@ -2,7 +2,7 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
 import { genericPlugin } from "./src/generic/channel.js";
 import { setGenericRuntime } from "./src/generic/runtime.js";
-import { broadcastToolCallEvent } from "./src/generic/tool-events.js";
+import { broadcastToolCallEvent, type ToolCallHookEvent } from "./src/generic/tool-events.js";
 
 // Generic channel exports
 export { monitorGenericProvider } from "./src/generic/monitor.js";
@@ -167,10 +167,10 @@ const plugin = {
     api.registerChannel({ plugin: genericPlugin });
 
     // Tool call events → broadcast to connected clients
-    api.on("before_tool_call", (event: any) => {
+    api.on("before_tool_call", (event: ToolCallHookEvent) => {
       broadcastToolCallEvent("tool.start", event);
     });
-    api.on("after_tool_call", (event: any) => {
+    api.on("after_tool_call", (event: ToolCallHookEvent) => {
       broadcastToolCallEvent("tool.end", event);
     });
   },
