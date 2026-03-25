@@ -234,7 +234,9 @@ export type WSEventType =
   | "user.status"
   | "file.progress"
   | "file.transfer"
-  | "group.action";
+  | "group.action"
+  | "tool.start"
+  | "tool.end";
 
 export type WSEvent = {
   type: WSEventType;
