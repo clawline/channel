@@ -1,13 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { OpenClawConfig, RuntimeEnv } from "openclaw/plugin-sdk";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
+import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
 import {
   buildPendingHistoryContextFromMap,
   recordPendingHistoryEntryIfEnabled,
   clearHistoryEntriesIfEnabled,
   DEFAULT_GROUP_HISTORY_LIMIT,
   type HistoryEntry,
-} from "openclaw/plugin-sdk";
+} from "openclaw/plugin-sdk/reply-history";
 import type { GenericChannelConfig, GenericMessageContext, InboundMessage } from "./types.js";
 import { appendInboundHistoryMessage } from "./history.js";
 import { getGenericRuntime } from "./runtime.js";
@@ -51,7 +52,7 @@ async function readPairingAllowFromStore(params: {
   log: (message: string) => void;
 }): Promise<string[]> {
   const storeAllowFrom = await params.runtimeCore.channel.pairing
-    .readAllowFromStore(GENERIC_CHANNEL_ID)
+    .readAllowFromStore({ channel: GENERIC_CHANNEL_ID, accountId: "default" })
     .catch(() => []);
 
   if (storeAllowFrom.length > 0) {
@@ -159,6 +160,7 @@ export async function handleGenericMessage(params: {
         if (dmPolicy === "pairing") {
           const { code, created } = await core.channel.pairing.upsertPairingRequest({
             channel: GENERIC_CHANNEL_ID,
+            accountId: "default",
             id: ctx.senderId,
             meta: { name: ctx.senderName || undefined },
           });
@@ -206,7 +208,7 @@ export async function handleGenericMessage(params: {
         cfg,
         channel: "clawline",
         peer: {
-          kind: isGroup ? "group" : "dm",
+          kind: isGroup ? "group" : "direct",
           id: ctx.chatId,
         },
       });

@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 import type { GenericChannelConfig } from "./types.js";
 import { getGenericWSManager } from "./client.js";
 import { downloadMediaFromUrl } from "./media.js";

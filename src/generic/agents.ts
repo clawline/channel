@@ -1,8 +1,8 @@
 import os from "node:os";
 import path from "node:path";
 import { readdirSync } from "node:fs";
-import type { OpenClawConfig } from "openclaw/plugin-sdk";
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
+import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/core";
 import type { AgentListItem } from "./types.js";
 
 const DEFAULT_AGENT_ID = "main";
@@ -202,8 +202,8 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
             : undefined,
         model: primaryModel?.trim() || undefined,
         description:
-          typeof agent?.identity?.description === "string" && agent.identity.description.trim()
-            ? agent.identity.description.trim()
+          typeof (agent?.identity as Record<string, unknown>)?.description === "string" && (agent.identity as Record<string, unknown>).description
+            ? String((agent.identity as Record<string, unknown>).description).trim()
             : undefined,
         skills: resolveSkillNames(agent?.skills).length > 0
           ? resolveSkillNames(agent?.skills)

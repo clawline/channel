@@ -1,5 +1,6 @@
 {
   "id": "clawline",
+  "kind": "channel",
   "channels": ["clawline"],
   "configSchema": {
     "type": "object",

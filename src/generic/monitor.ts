@@ -1,6 +1,8 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import type { OpenClawConfig, RuntimeEnv, HistoryEntry } from "openclaw/plugin-sdk";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
+import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
+import type { HistoryEntry } from "openclaw/plugin-sdk/reply-history";
 import type { AgentContextFile, GenericChannelConfig, InboundMessage, WSEventType } from "./types.js";
 import {
   createGenericWSManager,

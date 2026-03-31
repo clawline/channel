@@ -10,6 +10,7 @@
   },
   "files": [
     "index.ts",
+    "setup-entry.ts",
     "src",
     "examples",
     "openclaw.plugin.json",
@@ -32,6 +33,7 @@
     "extensions": [
       "./index.ts"
     ],
+    "setupEntry": "./setup-entry.ts",
     "channel": {
       "id": "clawline",
       "label": "Clawline",
@@ -55,11 +57,11 @@
   },
   "devDependencies": {
     "@types/node": "^25.0.10",
-    "openclaw": "2026.1.29",
+    "openclaw": "^2026.3.28",
     "tsx": "^4.21.0",
     "typescript": "^5.7.0"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.1.29"
+    "openclaw": ">=2026.3.0"
   }
 }

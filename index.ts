@@ -1,5 +1,4 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
-import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
+import { defineChannelPluginEntry } from "openclaw/plugin-sdk/core";
 import { genericPlugin } from "./src/generic/channel.js";
 import { setGenericRuntime } from "./src/generic/runtime.js";
 import { broadcastToolCallEvent, type ToolCallHookEvent } from "./src/generic/tool-events.js";
@@ -157,15 +156,13 @@ export {
   type StarredMessage,
 } from "./src/generic/pins-stars.js";
 
-const plugin = {
+export default defineChannelPluginEntry({
   id: "clawline",
   name: "Clawline",
   description: "Generic WebSocket/Relay/Webhook channel plugin for OpenClaw",
-  configSchema: emptyPluginConfigSchema(),
-  register(api: OpenClawPluginApi) {
-    setGenericRuntime(api.runtime);
-    api.registerChannel({ plugin: genericPlugin });
-
+  plugin: genericPlugin,
+  setRuntime: setGenericRuntime,
+  registerFull(api) {
     // Tool call events → broadcast to connected clients
     api.on("before_tool_call", (event: ToolCallHookEvent) => {
       broadcastToolCallEvent("tool.start", event);
@@ -174,6 +171,4 @@ const plugin = {
       broadcastToolCallEvent("tool.end", event);
     });
   },
-};
-
-export default plugin;
+});

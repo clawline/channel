@@ -1,14 +1,12 @@
-import type { PluginRuntime } from "openclaw/plugin-sdk";
+import type { PluginRuntime } from "openclaw/plugin-sdk/core";
+import { createPluginRuntimeStore } from "openclaw/plugin-sdk/runtime-store";
 
-let runtime: PluginRuntime | null = null;
+const runtimeStore = createPluginRuntimeStore("clawline");
 
 export function setGenericRuntime(next: PluginRuntime) {
-  runtime = next;
+  runtimeStore.setRuntime(next);
 }
 
 export function getGenericRuntime(): PluginRuntime {
-  if (!runtime) {
-    throw new Error("Generic channel runtime not initialized");
-  }
-  return runtime;
+  return runtimeStore.getRuntime() as PluginRuntime;
 }

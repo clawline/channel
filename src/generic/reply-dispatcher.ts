@@ -1,11 +1,8 @@
-import {
-  createReplyPrefixContext,
-  createTypingCallbacks,
-  logTypingFailure,
-  type OpenClawConfig,
-  type RuntimeEnv,
-  type ReplyPayload,
-} from "openclaw/plugin-sdk";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
+import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
+import type { ReplyPayload } from "openclaw/plugin-sdk/reply-runtime";
+import { createReplyPrefixContext, createTypingCallbacks } from "openclaw/plugin-sdk/channel-runtime";
+import { logTypingFailure } from "openclaw/plugin-sdk/channel-feedback";
 import type { GenericChannelConfig } from "./types.js";
 import { getGenericRuntime } from "./runtime.js";
 import { sendMessageGeneric, sendThinkingIndicator, sendStreamDelta } from "./send.js";
@@ -70,11 +67,12 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
   const textChunkLimit = Math.max(
     1,
     genericCfg?.textChunkLimit ??
-      core.channel.text.resolveTextChunkLimit({
+      core.channel.text.resolveTextChunkLimit(
         cfg,
-        channel: "clawline",
-        defaultLimit: 4000,
-      }),
+        "clawline",
+        undefined,
+        { fallbackLimit: 4000 },
+      ),
   );
 
   const streamingEnabled = (genericCfg as GenericChannelConfig & { streaming?: { enabled?: boolean } } | undefined)
@@ -85,7 +83,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
       responsePrefix: prefixContext.responsePrefix,
       responsePrefixContextProvider: prefixContext.responsePrefixContextProvider,
       humanDelay: core.channel.reply.resolveHumanDelayConfig(cfg, agentId),
-      onReplyStart: typingCallbacks.onReplyStart,
+      typingCallbacks,
       deliver: async (payload: ReplyPayload) => {
         params.runtime.log?.(`generic deliver called: text=${payload.text?.slice(0, 100)}`);
         const text = payload.text ?? "";
@@ -121,8 +119,6 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
 
         params.runtime.log?.(`generic: sent ${chunks.length} message chunk(s)`);
       },
-      onReplyEnd: typingCallbacks.onReplyEnd,
-      onIdle: typingCallbacks.onIdle,
     });
 
   // Use onPartialReply for streaming deltas — official OpenClaw SDK mechanism
