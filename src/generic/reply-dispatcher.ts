@@ -1,6 +1,7 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
 import type { ReplyPayload } from "openclaw/plugin-sdk/reply-runtime";
+import { createReplyReferencePlanner } from "openclaw/plugin-sdk/reply-runtime";
 import { createReplyPrefixContext, createTypingCallbacks } from "openclaw/plugin-sdk/channel-runtime";
 import { logTypingFailure } from "openclaw/plugin-sdk/channel-feedback";
 import type { GenericChannelConfig } from "./types.js";
@@ -78,6 +79,12 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
   const streamingEnabled = (genericCfg as GenericChannelConfig & { streaming?: { enabled?: boolean } } | undefined)
     ?.streaming?.enabled !== false;
 
+  // Only first chunk of a multi-chunk reply should quote the original message
+  const replyPlanner = createReplyReferencePlanner({
+    startId: replyToMessageId,
+    replyToMode: "first",
+  });
+
   const { dispatcher, replyOptions, markDispatchIdle } =
     core.channel.reply.createReplyDispatcherWithTyping({
       responsePrefix: prefixContext.responsePrefix,
@@ -106,11 +113,12 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         const chunks = core.channel.text.chunkMarkdownText(text, textChunkLimit);
 
         for (const chunk of chunks) {
+          const chunkReplyTo = replyPlanner.use();
           await sendMessageGeneric({
             cfg,
             to: `chat:${chatId}`,
             text: chunk,
-            replyToMessageId,
+            replyToMessageId: chunkReplyTo,
             contentType: "text",
             chatType,
             agentId,

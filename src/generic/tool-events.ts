@@ -119,9 +119,14 @@ export function broadcastToolCallEvent(
     payload.args = redactSensitive(args as Record<string, unknown>);
   }
 
-  // B8: don't send result content at all — just success/failure indicator
   if (eventType === "tool.end") {
     payload.completed = true;
+    // Include a truncated result summary for client-side detail view
+    const result = hookEvent.result;
+    if (result != null) {
+      const raw = typeof result === "string" ? result : JSON.stringify(result);
+      payload.resultSummary = raw.length > 300 ? raw.slice(0, 300) + "…" : raw;
+    }
   }
 
   const event = {
