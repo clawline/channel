@@ -91,7 +91,7 @@ function scanInstalledSkills(workspace?: string, agentId?: string): string[] {
   } catch {
     /* ignore */
   }
-  // npm-installed skills
+  // npm-installed skills (user-local)
   const npmDir = path.join(os.homedir(), ".npm-global", "lib", "node_modules", "openclaw", "skills");
   try {
     const entries = readdirSync(npmDir, { withFileTypes: true });
@@ -100,6 +100,18 @@ function scanInstalledSkills(workspace?: string, agentId?: string): string[] {
     }
   } catch {
     /* ignore */
+  }
+  // npm-installed skills (system-wide, e.g. /usr/lib/node_modules/openclaw/skills)
+  const systemNpmDir = "/usr/lib/node_modules/openclaw/skills";
+  if (systemNpmDir !== npmDir) {
+    try {
+      const entries = readdirSync(systemNpmDir, { withFileTypes: true });
+      for (const e of entries) {
+        if (e.isDirectory()) dirs.push(e.name);
+      }
+    } catch {
+      /* ignore */
+    }
   }
   // Workspace skills (explicit path or inferred from agentId)
   const wsPaths: string[] = [];
