@@ -37,7 +37,10 @@ function resolveProvider(cfg: OpenClawConfig): {
   model: string;
   isAzureOpenAI: boolean;
 } | null {
-  const providers = (cfg as Record<string, unknown>).providers as
+  // OpenClaw config nests providers under cfg.models.providers
+  const cfgAny = cfg as Record<string, unknown>;
+  const modelsSection = cfgAny.models as Record<string, unknown> | undefined;
+  const providers = (modelsSection?.providers ?? cfgAny.providers) as
     | Record<string, { baseUrl?: string; apiKey?: unknown; auth?: string; models?: Array<{ id: string }> }>
     | undefined;
   if (!providers) return null;
@@ -85,7 +88,8 @@ function resolveProvider(cfg: OpenClawConfig): {
       baseUrl: provider.baseUrl.replace(/\/+$/, ""),
       apiKey,
       model,
-      isAzureOpenAI: provider.baseUrl.includes(".openai.azure.com"),
+      // Azure OpenAI uses deployment-based URLs; Azure Foundry uses /openai/v1 (OpenAI-compatible)
+      isAzureOpenAI: provider.baseUrl.includes(".openai.azure.com") && !provider.baseUrl.includes("/openai/v1"),
     };
   }
 
@@ -113,11 +117,17 @@ export async function generateSuggestions(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
   if (isAzureOpenAI) {
-    const base = baseUrl.replace(/\/openai\/v1$/, "").replace(/\/openai$/, "");
+    // Azure OpenAI (not Foundry) uses deployment-based URLs
+    const base = baseUrl
+      .replace(/\/openai\/v1\/?$/, "")
+      .replace(/\/openai\/?$/, "")
+      .replace(/\/+$/, "");
     url = `${base}/openai/deployments/${model}/chat/completions?api-version=2025-01-01-preview`;
     headers["api-key"] = apiKey;
   } else {
-    url = `${baseUrl}/chat/completions`;
+    // Standard OpenAI-compatible or Azure Foundry (openai/v1 endpoint)
+    const base = baseUrl.replace(/\/+$/, "");
+    url = `${base}/chat/completions`;
     headers["Authorization"] = `Bearer ${apiKey}`;
   }
 
