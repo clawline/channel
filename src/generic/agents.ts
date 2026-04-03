@@ -23,6 +23,8 @@ type GenericAgentEntry = {
   model?: string;
   description?: string;
   skills: string[];
+  /** Skills explicitly declared in agent config (subset of skills) */
+  configuredSkills: string[];
   status: "online" | "idle" | "busy";
   workspace?: string;
 };
@@ -217,12 +219,20 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
           typeof (agent?.identity as Record<string, unknown>)?.description === "string" && (agent.identity as Record<string, unknown>).description
             ? String((agent.identity as Record<string, unknown>).description).trim()
             : undefined,
-        skills: resolveSkillNames(agent?.skills).length > 0
-          ? resolveSkillNames(agent?.skills)
-          : scanInstalledSkills(
-              typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
-              normalizedId,
-            ),
+        skills: (() => {
+          const configured = resolveSkillNames(agent?.skills);
+          const scanned = scanInstalledSkills(
+            typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
+            normalizedId,
+          );
+          // Merge: configured first, then scanned (deduped)
+          const all = [...configured];
+          for (const s of scanned) {
+            if (!all.includes(s)) all.push(s);
+          }
+          return all;
+        })(),
+        configuredSkills: resolveSkillNames(agent?.skills),
         workspace:
           typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
         status: "online" as const,
@@ -246,6 +256,7 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
       model: agent.model,
       description: agent.description,
       skills: agent.skills,
+      configuredSkills: agent.configuredSkills,
       status: agent.status,
       workspace: agent.workspace,
       isDefault: false,
@@ -266,6 +277,7 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
           name: fallbackDefaultId,
           isDefault: true,
           skills: [],
+          configuredSkills: [],
           status: "online",
         },
       ],
@@ -358,6 +370,7 @@ export function listGenericAgents(cfg: OpenClawConfig): {
       model: agent.model,
       description: agent.description,
       skills: agent.skills,
+      configuredSkills: agent.configuredSkills.length > 0 ? agent.configuredSkills : undefined,
       status: agent.status,
     })),
   };

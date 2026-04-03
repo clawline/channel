@@ -125,6 +125,8 @@ export type AgentListItem = {
   model?: string;
   description?: string;
   skills?: string[];
+  /** Skills explicitly declared in agent config (subset of skills) */
+  configuredSkills?: string[];
   status?: "online" | "idle" | "busy";
 };
 
