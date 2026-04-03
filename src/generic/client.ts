@@ -290,6 +290,10 @@ export interface GenericClientManager {
   onGroupAction?: (data: GroupAction) => void;
   onPinMessage?: (data: PinMessageData) => void;
   onUnpinMessage?: (data: UnpinMessageData) => void;
+  onSuggestionRequest?: (params: {
+    ws: WebSocket;
+    data: { requestId?: string; messages: Array<{ role: string; text: string }> };
+  }) => void;
   onChannelStatusRequest?: (params: {
     chatId?: string;
     ws: WebSocket;
@@ -760,6 +764,17 @@ abstract class GenericClientManagerBase implements GenericClientManager {
           this.onUnpinMessage?.(unpin);
           break;
         }
+        case "suggestion.get": {
+          const suggestionData = message.data as { requestId?: string; messages?: Array<{ role: string; text: string }> } | undefined;
+          this.onSuggestionRequest?.({
+            ws,
+            data: {
+              requestId: suggestionData?.requestId,
+              messages: Array.isArray(suggestionData?.messages) ? suggestionData.messages : [],
+            },
+          });
+          break;
+        }
       }
     } catch (err) {
       console.error(`[generic] Failed to handle message from ${sourceId}:`, err);
@@ -827,6 +842,10 @@ abstract class GenericClientManagerBase implements GenericClientManager {
   onGroupAction?: (data: GroupAction) => void;
   onPinMessage?: (data: PinMessageData) => void;
   onUnpinMessage?: (data: UnpinMessageData) => void;
+  onSuggestionRequest?: (params: {
+    ws: WebSocket;
+    data: { requestId?: string; messages: Array<{ role: string; text: string }> };
+  }) => void;
   onChannelStatusRequest?: (params: {
     chatId?: string;
     ws: WebSocket;

@@ -695,6 +695,35 @@ async function monitorWebSocket(params: {
     }
   };
 
+  // Set up suggestion handler (server-side AI suggestion generation)
+  wsManager.onSuggestionRequest = async ({ ws, data }) => {
+    try {
+      const { generateSuggestions } = await import("./suggestions.js");
+      const result = await generateSuggestions(cfg, data.messages);
+      wsManager.sendDirect(ws, {
+        type: "suggestion.response" as WSEventType,
+        data: {
+          requestId: data.requestId,
+          suggestions: result.suggestions,
+          source: "server",
+          timestamp: Date.now(),
+        },
+      });
+    } catch (err) {
+      error(`generic: error generating suggestions: ${String(err)}`);
+      wsManager.sendDirect(ws, {
+        type: "suggestion.response" as WSEventType,
+        data: {
+          requestId: data.requestId,
+          suggestions: [],
+          source: "server",
+          error: String(err),
+          timestamp: Date.now(),
+        },
+      });
+    }
+  };
+
   // Start the WebSocket server
   wsManager.start();
 

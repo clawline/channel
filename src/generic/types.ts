@@ -235,6 +235,8 @@ export type WSEventType =
   | "file.progress"
   | "file.transfer"
   | "group.action"
+  | "suggestion.get"
+  | "suggestion.response"
   | "tool.start"
   | "tool.end";
 
