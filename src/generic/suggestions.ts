@@ -1,14 +1,10 @@
 /**
  * Server-side AI suggestion generator.
- * Uses the host machine's OpenClaw model provider config to generate
- * contextual follow-up suggestions, so clients don't need their own API keys.
+ * Uses the OpenClaw plugin SDK (modelAuth) to resolve provider credentials,
+ * so clients don't need their own API keys.
  */
 import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
-
-interface ConversationMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+import { getGenericRuntime } from "./runtime.js";
 
 interface SuggestionResult {
   suggestions: string[];
@@ -26,46 +22,51 @@ Rules:
 - If in English, generate English suggestions
 - Match the language and tone of the conversation`;
 
+// Preferred provider order
+const PREFERRED_PROVIDERS = ["azure-foundry", "openai", "github-copilot"];
+// Preferred small/cheap models
+const PREFERRED_MODELS = ["gpt-4.1", "GPT-4.1", "gpt-5-mini", "gpt-4o-mini", "gpt-4o", "gpt-5.2"];
+
 /**
- * Resolve a usable model provider from OpenClaw config.
- * Prefers: azure-foundry > openai > any provider with api-key auth.
- * Picks a small/cheap model when possible (gpt-4.1, gpt-5-mini, etc.)
+ * Resolve a usable provider, model, and API key using the SDK's modelAuth.
  */
-function resolveProvider(cfg: OpenClawConfig): {
+async function resolveProviderViaSDK(cfg: OpenClawConfig): Promise<{
   baseUrl: string;
   apiKey: string;
   model: string;
   isAzureOpenAI: boolean;
-} | null {
-  // OpenClaw config nests providers under cfg.models.providers
+} | null> {
+  const runtime = getGenericRuntime();
+
+  // Access providers from config
   const cfgAny = cfg as Record<string, unknown>;
   const modelsSection = cfgAny.models as Record<string, unknown> | undefined;
   const providers = (modelsSection?.providers ?? cfgAny.providers) as
-    | Record<string, { baseUrl?: string; apiKey?: unknown; auth?: string; models?: Array<{ id: string }> }>
+    | Record<string, { baseUrl?: string; models?: Array<{ id: string }>; auth?: string }>
     | undefined;
   if (!providers) return null;
 
-  // Priority order for provider selection
-  const preferredProviders = ["azure-foundry", "openai", "github-copilot"];
-  // Preferred small models for suggestion generation (cheap & fast)
-  const preferredModels = ["gpt-4.1", "GPT-4.1", "gpt-5-mini", "gpt-4o-mini", "gpt-4o", "gpt-5.2"];
+  // Try preferred providers first, then any available
+  const providerNames = [
+    ...PREFERRED_PROVIDERS.filter((p) => p in providers),
+    ...Object.keys(providers).filter((p) => !PREFERRED_PROVIDERS.includes(p)),
+  ];
 
-  for (const providerName of [...preferredProviders, ...Object.keys(providers)]) {
+  for (const providerName of providerNames) {
     const provider = providers[providerName];
     if (!provider?.baseUrl) continue;
 
-    // Resolve API key
+    // Use SDK modelAuth to resolve the API key
     let apiKey = "";
-    if (typeof provider.apiKey === "string") {
-      apiKey = provider.apiKey;
-    } else if (provider.apiKey && typeof provider.apiKey === "object") {
-      // SecretInput: could be { env: "VAR_NAME" } or { value: "..." }
-      const secretInput = provider.apiKey as Record<string, string>;
-      if (secretInput.value) {
-        apiKey = secretInput.value;
-      } else if (secretInput.env) {
-        apiKey = process.env[secretInput.env] ?? "";
-      }
+    try {
+      const auth = await runtime.modelAuth.resolveApiKeyForProvider({
+        provider: providerName,
+        cfg,
+      });
+      apiKey = auth?.apiKey ?? "";
+    } catch {
+      // Fallback: skip this provider
+      continue;
     }
 
     if (!apiKey && provider.auth !== "oauth") continue;
@@ -73,7 +74,7 @@ function resolveProvider(cfg: OpenClawConfig): {
     // Pick a model
     const modelIds = provider.models?.map((m) => m.id) ?? [];
     let model = "";
-    for (const preferred of preferredModels) {
+    for (const preferred of PREFERRED_MODELS) {
       if (modelIds.includes(preferred)) {
         model = preferred;
         break;
@@ -88,8 +89,8 @@ function resolveProvider(cfg: OpenClawConfig): {
       baseUrl: provider.baseUrl.replace(/\/+$/, ""),
       apiKey,
       model,
-      // Azure OpenAI uses deployment-based URLs; Azure Foundry uses /openai/v1 (OpenAI-compatible)
-      isAzureOpenAI: provider.baseUrl.includes(".openai.azure.com") && !provider.baseUrl.includes("/openai/v1"),
+      isAzureOpenAI:
+        provider.baseUrl.includes(".openai.azure.com") && !provider.baseUrl.includes("/openai/v1"),
     };
   }
 
@@ -101,7 +102,8 @@ export async function generateSuggestions(
   recentMessages: Array<{ role: string; text: string }>,
   signal?: AbortSignal,
 ): Promise<SuggestionResult> {
-  const provider = resolveProvider(cfg);
+  const provider = await resolveProviderViaSDK(cfg);
+
   if (!provider) {
     return { suggestions: [], error: "no-provider" };
   }
@@ -117,7 +119,6 @@ export async function generateSuggestions(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
   if (isAzureOpenAI) {
-    // Azure OpenAI (not Foundry) uses deployment-based URLs
     const base = baseUrl
       .replace(/\/openai\/v1\/?$/, "")
       .replace(/\/openai\/?$/, "")
@@ -125,7 +126,6 @@ export async function generateSuggestions(
     url = `${base}/openai/deployments/${model}/chat/completions?api-version=2025-01-01-preview`;
     headers["api-key"] = apiKey;
   } else {
-    // Standard OpenAI-compatible or Azure Foundry (openai/v1 endpoint)
     const base = baseUrl.replace(/\/+$/, "");
     url = `${base}/chat/completions`;
     headers["Authorization"] = `Bearer ${apiKey}`;

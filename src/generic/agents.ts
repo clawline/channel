@@ -81,41 +81,55 @@ function resolveSkillNames(skills: unknown): string[] {
 }
 
 /** Scan filesystem for installed skill directory names */
-function scanInstalledSkills(workspace?: string, agentId?: string): string[] {
-  const dirs: string[] = [];
-  // Global skills: ~/.openclaw/skills/
+interface ScannedSkills {
+  /** All scanned skill names (global + npm + workspace) */
+  all: string[];
+  /** Skills from user-installed locations (global ~/.openclaw/skills + workspace skills) — treated as "loaded" */
+  userInstalled: string[];
+  /** Skills from npm-bundled locations (openclaw built-in) — treated as "built-in" */
+  builtIn: string[];
+}
+
+function scanInstalledSkills(workspace?: string, agentId?: string): ScannedSkills {
+  const userInstalled: string[] = [];
+  const builtIn: string[] = [];
+
+  // Global skills: ~/.openclaw/skills/ — user-installed
   const globalDir = path.join(os.homedir(), ".openclaw", "skills");
   try {
     const entries = readdirSync(globalDir, { withFileTypes: true });
     for (const e of entries) {
-      if (e.isDirectory()) dirs.push(e.name);
+      if (e.isDirectory()) userInstalled.push(e.name);
     }
   } catch {
     /* ignore */
   }
-  // npm-installed skills (user-local)
+
+  // npm-installed skills (user-local) — built-in
   const npmDir = path.join(os.homedir(), ".npm-global", "lib", "node_modules", "openclaw", "skills");
   try {
     const entries = readdirSync(npmDir, { withFileTypes: true });
     for (const e of entries) {
-      if (e.isDirectory()) dirs.push(e.name);
+      if (e.isDirectory()) builtIn.push(e.name);
     }
   } catch {
     /* ignore */
   }
-  // npm-installed skills (system-wide, e.g. /usr/lib/node_modules/openclaw/skills)
+
+  // npm-installed skills (system-wide) — built-in
   const systemNpmDir = "/usr/lib/node_modules/openclaw/skills";
   if (systemNpmDir !== npmDir) {
     try {
       const entries = readdirSync(systemNpmDir, { withFileTypes: true });
       for (const e of entries) {
-        if (e.isDirectory()) dirs.push(e.name);
+        if (e.isDirectory() && !builtIn.includes(e.name)) builtIn.push(e.name);
       }
     } catch {
       /* ignore */
     }
   }
-  // Workspace skills (explicit path or inferred from agentId)
+
+  // Workspace skills (explicit path or inferred from agentId) — user-installed
   const wsPaths: string[] = [];
   if (workspace) {
     wsPaths.push(path.join(resolveUserPathLike(workspace), "skills"));
@@ -127,13 +141,15 @@ function scanInstalledSkills(workspace?: string, agentId?: string): string[] {
     try {
       const entries = readdirSync(wsDir, { withFileTypes: true });
       for (const e of entries) {
-        if (e.isDirectory() && !dirs.includes(e.name)) dirs.push(e.name);
+        if (e.isDirectory() && !userInstalled.includes(e.name)) userInstalled.push(e.name);
       }
     } catch {
       /* ignore */
     }
   }
-  return Array.from(new Set(dirs));
+
+  const all = Array.from(new Set([...userInstalled, ...builtIn]));
+  return { all, userInstalled: Array.from(new Set(userInstalled)), builtIn: Array.from(new Set(builtIn)) };
 }
 
 function resolveUserPathLike(rawPath: string): string {
@@ -227,12 +243,27 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
           );
           // Merge: configured first, then scanned (deduped)
           const all = [...configured];
-          for (const s of scanned) {
+          for (const s of scanned.all) {
             if (!all.includes(s)) all.push(s);
           }
           return all;
         })(),
-        configuredSkills: resolveSkillNames(agent?.skills),
+        // "configuredSkills" = all skills actually installed on the system
+        // (agent config + global + workspace + npm built-in)
+        // These are all considered "loaded/active" since they exist on disk.
+        configuredSkills: (() => {
+          const configured = resolveSkillNames(agent?.skills);
+          const scanned = scanInstalledSkills(
+            typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
+            normalizedId,
+          );
+          // All installed skills are "configured" (loaded)
+          const loaded = [...configured];
+          for (const s of scanned.all) {
+            if (!loaded.includes(s)) loaded.push(s);
+          }
+          return loaded;
+        })(),
         workspace:
           typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
         status: "online" as const,

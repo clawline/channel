@@ -697,6 +697,7 @@ async function monitorWebSocket(params: {
 
   // Set up suggestion handler (server-side AI suggestion generation)
   wsManager.onSuggestionRequest = async ({ ws, data }) => {
+  
     try {
       const { generateSuggestions } = await import("./suggestions.js");
       const result = await generateSuggestions(cfg, data.messages);
