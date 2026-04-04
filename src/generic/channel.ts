@@ -44,6 +44,9 @@ export const genericPlugin: ChannelPlugin<ResolvedGenericAccount> = {
       });
     },
   },
+  conversationBindings: {
+    supportsCurrentConversationBinding: true,
+  },
   capabilities: {
     chatTypes: ["direct", "channel"],
     polls: false,
