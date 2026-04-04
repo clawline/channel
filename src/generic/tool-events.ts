@@ -134,12 +134,21 @@ export function broadcastToolCallEvent(
     data: payload,
   };
 
-  // S14: use chatId for targeted sends; sendToClient already does agent-level filtering
+  // S14: agent-isolated delivery — never broadcast without agentId
+  const agentId = hookEvent.agentId;
+  if (!agentId) {
+    // No agentId means we can't isolate; drop to avoid cross-agent leakage
+    console.debug?.(`[clawline] tool event dropped (no agentId): ${eventType}`);
+    return;
+  }
+
   const chatId = hookEvent.chatId;
   if (chatId) {
     wsManager.sendToClient(chatId, event);
   } else {
-    // When no chatId, broadcast — sendToClient's agent isolation handles per-connection filtering
-    wsManager.broadcast(event);
+    // Deliver to all connected clients, relying on sendToClient's agent isolation
+    for (const clientId of wsManager.getConnectedClients()) {
+      wsManager.sendToClient(clientId, event);
+    }
   }
 }

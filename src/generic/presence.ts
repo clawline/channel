@@ -165,17 +165,17 @@ export function broadcastUserStatus(params: {
 
   const wsManager = getGenericWSManager();
   if (wsManager) {
+    const event = {
+      type: "user.status" as const,
+      data: presence,
+    };
     if (targetChatId) {
-      wsManager.sendToClient(targetChatId, {
-        type: "user.status",
-        data: presence,
-      });
+      wsManager.sendToClient(targetChatId, event);
     } else {
-      // Broadcast to all connected clients
-      wsManager.broadcast({
-        type: "user.status",
-        data: presence,
-      });
+      // Deliver to all connected clients individually (no blind broadcast)
+      for (const clientId of wsManager.getConnectedClients()) {
+        wsManager.sendToClient(clientId, event);
+      }
     }
   }
 }
