@@ -143,19 +143,6 @@ rm -rf /tmp/jiti/
 systemctl --user restart openclaw-gateway
 ```
 
-#### Method 2: npm / openclaw CLI install
-
-```bash
-# 1. Update
-openclaw plugins install @restry/clawline
-
-# 2. Clear jiti cache
-rm -rf /tmp/jiti/
-
-# 3. Restart
-systemctl --user restart openclaw-gateway
-```
-
 #### ⚠️ Common Pitfalls
 
 | Mistake | Symptom | Fix |
@@ -589,19 +576,6 @@ npm install --omit=dev    # 防止依赖有变化
 
 rsync -a --delete ~/.openclaw/plugins/clawline/ ~/.openclaw/extensions/clawline/
 rm -rf /tmp/jiti/
-systemctl --user restart openclaw-gateway
-```
-
-#### 方式二：npm / openclaw CLI 安装
-
-```bash
-# 1. 更新
-openclaw plugins install @restry/clawline
-
-# 2. 清除 jiti 缓存
-rm -rf /tmp/jiti/
-
-# 3. 重启
 systemctl --user restart openclaw-gateway
 ```
 
