@@ -116,20 +116,31 @@ openclaw config set channels.clawline.wsPort 8080
 On the server running OpenClaw Gateway:
 
 ```bash
-# 1. Pull latest code
+# First-time install
+mkdir -p ~/.openclaw/plugins
+git clone https://github.com/clawline/channel.git ~/.openclaw/plugins/clawline
 cd ~/.openclaw/plugins/clawline
-git pull
+npm install --omit=dev
 
-# 2. Sync to extensions directory
+# Sync to extensions directory
 #    ⚠️ CRITICAL — Gateway loads from extensions/, NOT plugins/
 rsync -a --delete ~/.openclaw/plugins/clawline/ ~/.openclaw/extensions/clawline/
 
-# 3. Clear jiti transpiler cache (stale cache = old code still running)
+# Clear jiti transpiler cache and restart
 rm -rf /tmp/jiti/
-
-# 4. Restart the gateway
 systemctl --user restart openclaw-gateway
-# or: openclaw gateway restart
+```
+
+Updating to a new version:
+
+```bash
+cd ~/.openclaw/plugins/clawline
+git pull
+npm install --omit=dev    # in case dependencies changed
+
+rsync -a --delete ~/.openclaw/plugins/clawline/ ~/.openclaw/extensions/clawline/
+rm -rf /tmp/jiti/
+systemctl --user restart openclaw-gateway
 ```
 
 #### Method 2: npm / openclaw CLI install
@@ -149,6 +160,7 @@ systemctl --user restart openclaw-gateway
 
 | Mistake | Symptom | Fix |
 |---------|---------|-----|
+| Forgot `npm install` after clone/pull | `Cannot find module 'ws'` on startup | `cd ~/.openclaw/plugins/clawline && npm install --omit=dev` |
 | Forgot `rsync plugins/ → extensions/` | Old behavior persists after `git pull` | Run the rsync command |
 | Forgot `rm -rf /tmp/jiti/` | Stale transpiled JS is loaded instead of new TS | Delete `/tmp/jiti/` and restart |
 | Forgot to restart gateway | Changes not picked up | `systemctl --user restart openclaw-gateway` |
@@ -553,20 +565,31 @@ openclaw config set channels.clawline.wsPort 8080
 在运行 OpenClaw Gateway 的服务器上执行：
 
 ```bash
-# 1. 拉取最新代码
+# 首次安装
+mkdir -p ~/.openclaw/plugins
+git clone https://github.com/clawline/channel.git ~/.openclaw/plugins/clawline
 cd ~/.openclaw/plugins/clawline
-git pull
+npm install --omit=dev
 
-# 2. 同步到 extensions 目录
+# 同步到 extensions 目录
 #    ⚠️ 关键 — Gateway 读取的是 extensions/ 而不是 plugins/！
 rsync -a --delete ~/.openclaw/plugins/clawline/ ~/.openclaw/extensions/clawline/
 
-# 3. 清除 jiti 编译缓存（不清会继续加载旧代码）
+# 清除 jiti 编译缓存并重启
 rm -rf /tmp/jiti/
-
-# 4. 重启 Gateway
 systemctl --user restart openclaw-gateway
-# 或者: openclaw gateway restart
+```
+
+更新到新版本：
+
+```bash
+cd ~/.openclaw/plugins/clawline
+git pull
+npm install --omit=dev    # 防止依赖有变化
+
+rsync -a --delete ~/.openclaw/plugins/clawline/ ~/.openclaw/extensions/clawline/
+rm -rf /tmp/jiti/
+systemctl --user restart openclaw-gateway
 ```
 
 #### 方式二：npm / openclaw CLI 安装
@@ -586,6 +609,7 @@ systemctl --user restart openclaw-gateway
 
 | 错误操作 | 现象 | 解决方法 |
 |---------|------|---------|
+| 忘了 `npm install` | 启动报 `Cannot find module 'ws'` | `cd ~/.openclaw/plugins/clawline && npm install --omit=dev` |
 | 忘了 `rsync plugins/ → extensions/` | `git pull` 后行为没变 | 执行上面的 rsync 命令 |
 | 忘了 `rm -rf /tmp/jiti/` | 加载的仍然是旧的编译缓存 | 删除 `/tmp/jiti/` 后重启 |
 | 忘了重启 Gateway | 改动未生效 | `systemctl --user restart openclaw-gateway` |
