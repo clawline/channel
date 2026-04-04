@@ -109,6 +109,59 @@ openclaw config set channels.clawline.wsPort 8080
 
 📖 **See [docs/README.md](docs/README.md) for the current documentation set.**
 
+### Updating the Plugin
+
+After pulling new code or installing a new version, you **must** follow these steps to activate the update:
+
+```bash
+# 1. Update source (if installed via git clone)
+cd ~/.openclaw/plugins/clawline
+git pull
+
+# 2. Sync to extensions directory (⚠️ CRITICAL — Gateway loads from extensions/, NOT plugins/)
+rsync -a --delete ~/.openclaw/plugins/clawline/ ~/.openclaw/extensions/clawline/
+
+# 3. Clear jiti transpiler cache (stale cache = old code still running)
+rm -rf /tmp/jiti/
+
+# 4. Restart the gateway
+systemctl --user restart openclaw-gateway
+# or: openclaw gateway restart
+```
+
+If installed via `openclaw plugins install`:
+
+```bash
+# 1. Update
+openclaw plugins install @restry/clawline
+
+# 2. Clear jiti cache
+rm -rf /tmp/jiti/
+
+# 3. Restart
+systemctl --user restart openclaw-gateway
+```
+
+#### ⚠️ Common Pitfalls
+
+| Mistake | Symptom | Fix |
+|---------|---------|-----|
+| Forgot `rsync plugins/ → extensions/` | Old behavior persists after `git pull` | Run the rsync command above |
+| Forgot `rm -rf /tmp/jiti/` | Stale transpiled JS is loaded instead of new TS | Delete `/tmp/jiti/` and restart |
+| Forgot to restart gateway | Changes not picked up | `systemctl --user restart openclaw-gateway` |
+| Edited `plugins/` expecting live reload | No effect — gateway reads `extensions/` | Always rsync after editing |
+
+#### Verifying the Update
+
+After restarting, confirm the gateway is running:
+
+```bash
+systemctl --user status openclaw-gateway
+# Should show: active (running)
+```
+
+Then test from a connected client (e.g., send `/status` or any slash command). If the gateway responds, the update is active.
+
 ### Quick Start
 
 1. Enable the Clawline:
@@ -489,6 +542,59 @@ openclaw config set channels.clawline.wsPort 8080
 - **消息置顶与收藏**：置顶重要消息（最多 3 条）和收藏喜欢的消息
 
 📖 **当前文档入口见 [docs/README.md](docs/README.md)。**
+
+### 更新插件
+
+拉取新代码或安装新版本后，**必须**执行以下步骤才能激活更新：
+
+```bash
+# 1. 更新源码（如果是 git clone 安装的）
+cd ~/.openclaw/plugins/clawline
+git pull
+
+# 2. 同步到 extensions 目录（⚠️ 关键 — Gateway 读取的是 extensions/ 而不是 plugins/！）
+rsync -a --delete ~/.openclaw/plugins/clawline/ ~/.openclaw/extensions/clawline/
+
+# 3. 清除 jiti 编译缓存（不清会继续加载旧代码）
+rm -rf /tmp/jiti/
+
+# 4. 重启 Gateway
+systemctl --user restart openclaw-gateway
+# 或者: openclaw gateway restart
+```
+
+如果是通过 `openclaw plugins install` 安装的：
+
+```bash
+# 1. 更新
+openclaw plugins install @restry/clawline
+
+# 2. 清除 jiti 缓存
+rm -rf /tmp/jiti/
+
+# 3. 重启
+systemctl --user restart openclaw-gateway
+```
+
+#### ⚠️ 常见踩坑
+
+| 错误操作 | 现象 | 解决方法 |
+|---------|------|---------|
+| 忘了 `rsync plugins/ → extensions/` | `git pull` 后行为没变 | 执行上面的 rsync 命令 |
+| 忘了 `rm -rf /tmp/jiti/` | 加载的仍然是旧的编译缓存 | 删除 `/tmp/jiti/` 后重启 |
+| 忘了重启 Gateway | 改动未生效 | `systemctl --user restart openclaw-gateway` |
+| 直接改 `plugins/` 期望热更新 | 无效果 — Gateway 读取的是 `extensions/` | 改完后必须 rsync |
+
+#### 验证更新是否生效
+
+重启后确认 Gateway 运行正常：
+
+```bash
+systemctl --user status openclaw-gateway
+# 应显示: active (running)
+```
+
+然后从已连接的客户端测试（比如发送 `/status` 或任意斜杠命令）。如果 Gateway 有响应，说明更新已生效。
 
 ### 快速开始
 
