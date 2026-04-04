@@ -240,7 +240,9 @@ export type WSEventType =
   | "suggestion.get"
   | "suggestion.response"
   | "tool.start"
-  | "tool.end";
+  | "tool.end"
+  | "ping"
+  | "pong";
 
 export type WSEvent = {
   type: WSEventType;

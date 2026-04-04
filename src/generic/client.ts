@@ -488,6 +488,12 @@ abstract class GenericClientManagerBase implements GenericClientManager {
         }
       }
 
+      // Heartbeat: respond to ping immediately without further processing
+      if (message.type === "ping") {
+        this.sendEvent(ws, { type: "pong", data: { timestamp: Date.now() } });
+        return;
+      }
+
       switch (message.type) {
         case "message.receive": {
           const inbound = message.data as InboundMessage | undefined;
