@@ -194,16 +194,20 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
         data: outboundMessage,
       });
 
+      // Always persist to history — message is a real agent reply regardless of
+      // whether the client is currently connected.  Without this, messages sent
+      // while the user is offline are lost on reconnect (断点续传 regression).
+      appendOutboundHistoryMessage(outboundMessage, {
+        chatType,
+        agentId,
+      });
+
       if (sent) {
         // Mark stream as completed at chat-level (断点续传)
         if (agentId) {
           markStreamCompleted(target.chatId, agentId);
         }
 
-        appendOutboundHistoryMessage(outboundMessage, {
-          chatType,
-          agentId,
-        });
         // Mark as sent
         updateMessageStatus({
           cfg,
@@ -212,14 +216,17 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
           status: "sent",
         });
       } else {
-        // Mark as failed if client not connected
-        console.warn(`[generic] Client ${target.chatId} not connected, message failed`);
+        // Client not connected — message is persisted in history for retrieval on reconnect
+        console.warn(`[generic] Client ${target.chatId} not connected, message persisted for reconnect`);
+        // Mark stream as completed so reconnecting client won't get stale stream state
+        if (agentId) {
+          markStreamCompleted(target.chatId, agentId);
+        }
         updateMessageStatus({
           cfg,
           messageId,
           chatId: target.chatId,
-          status: "failed",
-          error: "Client not connected",
+          status: "sent",
         });
       }
     } else {
