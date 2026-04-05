@@ -413,6 +413,7 @@ export function listGenericAgents(cfg: OpenClawConfig): {
       description: agent.description,
       skills: agent.skills,
       configuredSkills: agent.configuredSkills.length > 0 ? agent.configuredSkills : undefined,
+      builtinSkills: agent.builtinSkills.length > 0 ? agent.builtinSkills : undefined,
       status: agent.status,
     })),
   };
