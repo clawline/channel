@@ -27,6 +27,10 @@ type GenericAgentEntry = {
   configuredSkills: string[];
   /** Skills from npm-bundled locations (openclaw built-in) */
   builtinSkills: string[];
+  /** Skills from global ~/.openclaw/skills/ */
+  globalSkills: string[];
+  /** Skills from workspace skills/ directory */
+  workspaceSkills: string[];
   status: "online" | "idle" | "busy";
   workspace?: string;
 };
@@ -90,10 +94,15 @@ interface ScannedSkills {
   userInstalled: string[];
   /** Skills from npm-bundled locations (openclaw built-in) — treated as "built-in" */
   builtIn: string[];
+  /** Skills from global ~/.openclaw/skills directory */
+  global: string[];
+  /** Skills from workspace skills directory */
+  workspace: string[];
 }
 
 function scanInstalledSkills(workspace?: string, agentId?: string): ScannedSkills {
-  const userInstalled: string[] = [];
+  const globalSkills: string[] = [];
+  const wsSkills: string[] = [];
   const builtIn: string[] = [];
 
   // Global skills: ~/.openclaw/skills/ — user-installed
@@ -101,7 +110,7 @@ function scanInstalledSkills(workspace?: string, agentId?: string): ScannedSkill
   try {
     const entries = readdirSync(globalDir, { withFileTypes: true });
     for (const e of entries) {
-      if (e.isDirectory()) userInstalled.push(e.name);
+      if (e.isDirectory()) globalSkills.push(e.name);
     }
   } catch {
     /* ignore */
@@ -143,15 +152,22 @@ function scanInstalledSkills(workspace?: string, agentId?: string): ScannedSkill
     try {
       const entries = readdirSync(wsDir, { withFileTypes: true });
       for (const e of entries) {
-        if (e.isDirectory() && !userInstalled.includes(e.name)) userInstalled.push(e.name);
+        if (e.isDirectory() && !wsSkills.includes(e.name) && !globalSkills.includes(e.name)) wsSkills.push(e.name);
       }
     } catch {
       /* ignore */
     }
   }
 
+  const userInstalled = [...globalSkills, ...wsSkills];
   const all = Array.from(new Set([...userInstalled, ...builtIn]));
-  return { all, userInstalled: Array.from(new Set(userInstalled)), builtIn: Array.from(new Set(builtIn)) };
+  return {
+    all,
+    userInstalled: Array.from(new Set(userInstalled)),
+    builtIn: Array.from(new Set(builtIn)),
+    global: Array.from(new Set(globalSkills)),
+    workspace: Array.from(new Set(wsSkills)),
+  };
 }
 
 function resolveUserPathLike(rawPath: string): string {
@@ -273,6 +289,20 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
           );
           return scanned.builtIn;
         })(),
+        globalSkills: (() => {
+          const scanned = scanInstalledSkills(
+            typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
+            normalizedId,
+          );
+          return scanned.global;
+        })(),
+        workspaceSkills: (() => {
+          const scanned = scanInstalledSkills(
+            typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
+            normalizedId,
+          );
+          return scanned.workspace;
+        })(),
         workspace:
           typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
         status: "online" as const,
@@ -298,6 +328,8 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
       skills: agent.skills,
       configuredSkills: agent.configuredSkills,
       builtinSkills: agent.builtinSkills,
+      globalSkills: agent.globalSkills,
+      workspaceSkills: agent.workspaceSkills,
       status: agent.status,
       workspace: agent.workspace,
       isDefault: false,
@@ -320,6 +352,8 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
           skills: [],
           configuredSkills: [],
           builtinSkills: [],
+          globalSkills: [],
+          workspaceSkills: [],
           status: "online",
         },
       ],
@@ -414,6 +448,8 @@ export function listGenericAgents(cfg: OpenClawConfig): {
       skills: agent.skills,
       configuredSkills: agent.configuredSkills.length > 0 ? agent.configuredSkills : undefined,
       builtinSkills: agent.builtinSkills.length > 0 ? agent.builtinSkills : undefined,
+      globalSkills: agent.globalSkills.length > 0 ? agent.globalSkills : undefined,
+      workspaceSkills: agent.workspaceSkills.length > 0 ? agent.workspaceSkills : undefined,
       status: agent.status,
     })),
   };
