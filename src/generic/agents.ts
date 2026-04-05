@@ -25,6 +25,8 @@ type GenericAgentEntry = {
   skills: string[];
   /** Skills explicitly declared in agent config (subset of skills) */
   configuredSkills: string[];
+  /** Skills from npm-bundled locations (openclaw built-in) */
+  builtinSkills: string[];
   status: "online" | "idle" | "busy";
   workspace?: string;
 };
@@ -264,6 +266,13 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
           }
           return loaded;
         })(),
+        builtinSkills: (() => {
+          const scanned = scanInstalledSkills(
+            typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
+            normalizedId,
+          );
+          return scanned.builtIn;
+        })(),
         workspace:
           typeof agent?.workspace === "string" && agent.workspace.trim() ? agent.workspace.trim() : undefined,
         status: "online" as const,
@@ -288,6 +297,7 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
       description: agent.description,
       skills: agent.skills,
       configuredSkills: agent.configuredSkills,
+      builtinSkills: agent.builtinSkills,
       status: agent.status,
       workspace: agent.workspace,
       isDefault: false,
@@ -309,6 +319,7 @@ function resolveConfiguredAgents(cfg: OpenClawConfig): {
           isDefault: true,
           skills: [],
           configuredSkills: [],
+          builtinSkills: [],
           status: "online",
         },
       ],
