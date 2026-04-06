@@ -23,7 +23,7 @@ Rules:
 - Match the language and tone of the conversation`;
 
 // Preferred provider order
-const PREFERRED_PROVIDERS = ["azure-foundry", "openai", "github-copilot"];
+const PREFERRED_PROVIDERS = ["azure-foundry", "sweden-ext", "us2", "clawfood", "liwei-eastus2", "openai", "github-copilot"];
 // Preferred small/cheap models
 const PREFERRED_MODELS = ["gpt-4.1", "GPT-4.1", "gpt-5-mini", "gpt-4o-mini", "gpt-4o", "gpt-5.2"];
 
@@ -89,8 +89,7 @@ async function resolveProviderViaSDK(cfg: OpenClawConfig): Promise<{
       baseUrl: provider.baseUrl.replace(/\/+$/, ""),
       apiKey,
       model,
-      isAzureOpenAI:
-        provider.baseUrl.includes(".openai.azure.com") && !provider.baseUrl.includes("/openai/v1"),
+      isAzureOpenAI: provider.baseUrl.includes(".openai.azure.com"),
     };
   }
 
@@ -119,11 +118,15 @@ export async function generateSuggestions(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
   if (isAzureOpenAI) {
-    const base = baseUrl
-      .replace(/\/openai\/v1\/?$/, "")
-      .replace(/\/openai\/?$/, "")
-      .replace(/\/+$/, "");
-    url = `${base}/openai/deployments/${model}/chat/completions?api-version=2025-01-01-preview`;
+    // Azure with /openai/v1 endpoint: use standard path
+    if (baseUrl.includes("/openai/v1")) {
+      url = `${baseUrl}/chat/completions`;
+    } else {
+      const base = baseUrl
+        .replace(/\/openai\/?$/, "")
+        .replace(/\/+$/, "");
+      url = `${base}/openai/deployments/${model}/chat/completions?api-version=2025-01-01-preview`;
+    }
     headers["api-key"] = apiKey;
   } else {
     const base = baseUrl.replace(/\/+$/, "");
