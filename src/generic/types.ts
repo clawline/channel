@@ -42,7 +42,7 @@ export type OutboundMessage = {
   messageId: string;
   chatId: string;
   content: string;
-  contentType: "text" | "markdown" | "image" | "voice" | "audio";
+  contentType: "text" | "markdown" | "image" | "voice" | "audio" | "file";
   // Media URL for image/voice/audio messages
   mediaUrl?: string;
   // MIME type for media content

@@ -14,7 +14,7 @@ export type SendGenericMessageParams = {
   to: string;
   text: string;
   replyToMessageId?: string;
-  contentType?: "text" | "markdown" | "image" | "voice" | "audio";
+  contentType?: "text" | "markdown" | "image" | "voice" | "audio" | "file";
   mediaUrl?: string;
   mimeType?: string;
   chatType?: "direct" | "group";
@@ -295,7 +295,7 @@ export async function sendMediaGeneric(params: {
   cfg: OpenClawConfig;
   to: string;
   mediaUrl: string;
-  mediaType: "image" | "voice" | "audio";
+  mediaType: "image" | "voice" | "audio" | "file";
   mimeType?: string;
   caption?: string;
   replyToMessageId?: string;

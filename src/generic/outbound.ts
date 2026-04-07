@@ -15,9 +15,18 @@ export const genericOutbound: ChannelOutboundAdapter = {
   sendMedia: async ({ cfg, to, text, mediaUrl }) => {
     const mimeType = mediaUrl ? inferMimeTypeFromSource(mediaUrl) : undefined;
     const inferredType = mimeType ? inferMediaTypeFromMime(mimeType) : undefined;
-    const contentType = inferredType === "image" || inferredType === "audio" ? inferredType : undefined;
 
-    if (contentType && mediaUrl) {
+    // Map inferred type to a contentType: image/audio stay as-is, everything else → "file"
+    let contentType: "image" | "audio" | "file";
+    if (inferredType === "image") {
+      contentType = "image";
+    } else if (inferredType === "audio") {
+      contentType = "audio";
+    } else {
+      contentType = "file";
+    }
+
+    if (mediaUrl) {
       const result = await sendMediaGeneric({
         cfg,
         to,
@@ -29,13 +38,8 @@ export const genericOutbound: ChannelOutboundAdapter = {
       return { channel: "clawline", ...result };
     }
 
-    // Fallback: send media URL as text
-    let fullText = text ?? "";
-    if (mediaUrl) {
-      fullText = fullText ? `${fullText}\n\n📎 ${mediaUrl}` : `📎 ${mediaUrl}`;
-    }
-
-    const result = await sendMessageGeneric({ cfg, to, text: fullText });
+    // No media URL — send as plain text
+    const result = await sendMessageGeneric({ cfg, to, text: text ?? "" });
     return { channel: "clawline", ...result };
   },
 };
