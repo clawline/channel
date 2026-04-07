@@ -51,12 +51,20 @@ export const genericOutbound: ChannelOutboundAdapter = {
   sendText: async (ctx) => {
     const { cfg, to, text } = ctx;
     const agentId = extractAgentIdFromOutboundContext(ctx);
+    if (!agentId) {
+      console.warn(`[clawline outbound] WARNING: could not extract agentId from context, skipping sendText to=${to}`);
+      return { channel: "clawline", messageId: "", chatId: "" };
+    }
     const result = await sendMessageGeneric({ cfg, to, text, agentId });
     return { channel: "clawline", ...result };
   },
   sendMedia: async (ctx) => {
     const { cfg, to, text, mediaUrl } = ctx;
     const agentId = extractAgentIdFromOutboundContext(ctx);
+    if (!agentId) {
+      console.warn(`[clawline outbound] WARNING: could not extract agentId from context, skipping sendMedia to=${to}`);
+      return { channel: "clawline", messageId: "", chatId: "" };
+    }
     const mimeType = mediaUrl ? inferMimeTypeFromSource(mediaUrl) : undefined;
     const inferredType = mimeType ? inferMediaTypeFromMime(mimeType) : undefined;
 
