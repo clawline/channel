@@ -3,6 +3,7 @@ import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 import { getGenericRuntime } from "./runtime.js";
 import { inferMediaTypeFromMime, inferMimeTypeFromSource } from "./media.js";
 import { sendMessageGeneric, sendMediaGeneric } from "./send.js";
+import { getGenericWSManager } from "./client.js";
 
 /**
  * Extract agentId from outbound context.
@@ -43,6 +44,29 @@ function extractAgentIdFromOutboundContext(ctx: {
   return undefined;
 }
 
+/**
+ * Send an error event to the client via WebSocket.
+ * Best-effort: if WS manager is unavailable or client is disconnected, the error is only logged server-side.
+ */
+function sendErrorToClient(to: string, code: string, message: string): void {
+  try {
+    const wsManager = getGenericWSManager();
+    if (!wsManager) return;
+    const chatId = to.startsWith('user:') ? to.substring(5) : to.startsWith('chat:') ? to.substring(5) : to;
+    wsManager.sendToClient(chatId, {
+      type: 'status.failed' as import('./types.js').WSEventType,
+      data: {
+        chatId,
+        code,
+        message,
+        timestamp: Date.now(),
+      },
+    });
+  } catch (err) {
+    console.warn('[clawline outbound] failed to send error event to client:', err);
+  }
+}
+
 export const genericOutbound: ChannelOutboundAdapter = {
   deliveryMode: "direct",
   chunker: (text, limit) => getGenericRuntime().channel.text.chunkMarkdownText(text, limit),
@@ -52,7 +76,9 @@ export const genericOutbound: ChannelOutboundAdapter = {
     const { cfg, to, text } = ctx;
     const agentId = extractAgentIdFromOutboundContext(ctx);
     if (!agentId) {
-      console.error(`[clawline outbound] ERROR: could not extract agentId from context for sendText to=${to}. This should not happen — every outbound message must have a target agent.`);
+      const errorMsg = `Agent ID could not be resolved for this message. This is a server-side configuration issue.`;
+      console.error(`[clawline outbound] ERROR: could not extract agentId from context for sendText to=${to}`);
+      sendErrorToClient(to, 'AGENT_ID_MISSING', errorMsg);
       throw new Error(`[clawline outbound] agentId required but could not be extracted for sendText to=${to}`);
     }
     const result = await sendMessageGeneric({ cfg, to, text, agentId });
@@ -62,7 +88,9 @@ export const genericOutbound: ChannelOutboundAdapter = {
     const { cfg, to, text, mediaUrl } = ctx;
     const agentId = extractAgentIdFromOutboundContext(ctx);
     if (!agentId) {
-      console.error(`[clawline outbound] ERROR: could not extract agentId from context for sendMedia to=${to}. This should not happen — every outbound message must have a target agent.`);
+      const errorMsg = `Agent ID could not be resolved for this media message. This is a server-side configuration issue.`;
+      console.error(`[clawline outbound] ERROR: could not extract agentId from context for sendMedia to=${to}`);
+      sendErrorToClient(to, 'AGENT_ID_MISSING', errorMsg);
       throw new Error(`[clawline outbound] agentId required but could not be extracted for sendMedia to=${to}`);
     }
     const mimeType = mediaUrl ? inferMimeTypeFromSource(mediaUrl) : undefined;
