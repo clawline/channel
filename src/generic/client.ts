@@ -1066,7 +1066,7 @@ class GenericWSManager extends GenericClientManagerBase {
       }
 
       const connectionId = `conn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const chatId = authResult.authUser?.chatId ?? authResult.query.chatId;
+      const chatId = authResult.authUser?.chatId ?? authResult.authUser?.senderId ?? authResult.query.chatId;
       const agentId = authResult.query.agentId;
       const connectionLabel = authResult.authUser?.senderId ?? chatId ?? connectionId;
       console.log(`[generic] WebSocket client connected: ${connectionLabel}`);
@@ -1384,7 +1384,13 @@ class GenericRelayManager extends GenericClientManagerBase {
     }
 
     const ws = {} as WebSocket;
-    const chatId = authResult.authUser?.chatId ?? authResult.query.chatId;
+    // chatId resolution priority:
+    // 1. authUser.chatId — explicitly configured per-user chat scope
+    // 2. authUser.senderId — for 1:1 DM routing (OpenClaw uses senderId as target)
+    // 3. query.chatId — client-provided fallback
+    // This ensures sendToClient(senderId) can find the connection, which is how
+    // OpenClaw runtime routes messages (target = "user:<senderId>").
+    const chatId = authResult.authUser?.chatId ?? authResult.authUser?.senderId ?? authResult.query.chatId;
     const connectionLabel = authResult.authUser?.senderId ?? chatId ?? frame.connectionId;
 
     this.connectionHandles.set(frame.connectionId, ws);
@@ -1419,7 +1425,7 @@ class GenericRelayManager extends GenericClientManagerBase {
       userId: authResult.authUser?.senderId,
     });
 
-    console.log(`[generic] Relay client connected: ${connectionLabel}`);
+    console.log(`[generic] Relay client connected: ${connectionLabel} (chatId=${chatId ?? 'none'}, authUser.chatId=${authResult.authUser?.chatId ?? 'none'}, query.chatId=${authResult.query.chatId ?? 'none'})`);
   }
 
   private handleRelayClientClose(frame: RelayClientCloseFrame): void {
