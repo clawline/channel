@@ -52,7 +52,8 @@ export const genericOutbound: ChannelOutboundAdapter = {
     const { cfg, to, text } = ctx;
     const agentId = extractAgentIdFromOutboundContext(ctx);
     if (!agentId) {
-      console.warn(`[clawline outbound] WARNING: could not extract agentId from context, broadcasting sendText to=${to}`);
+      console.error(`[clawline outbound] ERROR: could not extract agentId from context for sendText to=${to}. This should not happen — every outbound message must have a target agent.`);
+      throw new Error(`[clawline outbound] agentId required but could not be extracted for sendText to=${to}`);
     }
     const result = await sendMessageGeneric({ cfg, to, text, agentId });
     return { channel: "clawline", ...result };
@@ -61,7 +62,8 @@ export const genericOutbound: ChannelOutboundAdapter = {
     const { cfg, to, text, mediaUrl } = ctx;
     const agentId = extractAgentIdFromOutboundContext(ctx);
     if (!agentId) {
-      console.warn(`[clawline outbound] WARNING: could not extract agentId from context, broadcasting sendMedia to=${to}`);
+      console.error(`[clawline outbound] ERROR: could not extract agentId from context for sendMedia to=${to}. This should not happen — every outbound message must have a target agent.`);
+      throw new Error(`[clawline outbound] agentId required but could not be extracted for sendMedia to=${to}`);
     }
     const mimeType = mediaUrl ? inferMimeTypeFromSource(mediaUrl) : undefined;
     const inferredType = mimeType ? inferMediaTypeFromMime(mimeType) : undefined;
