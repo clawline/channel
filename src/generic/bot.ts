@@ -23,6 +23,24 @@ import { resolveExplicitGenericAgentRoute } from "./agents.js";
 
 const GENERIC_CHANNEL_ID = "clawline";
 
+// Dedup: track recently processed messageIds to prevent duplicate dispatch
+// (e.g. client outbox re-flush on reconnect sending same messageId)
+const RECENT_MESSAGE_IDS_MAX = 200;
+const recentMessageIds = new Set<string>();
+const recentMessageIdOrder: string[] = [];
+
+function trackMessageId(messageId: string): boolean {
+  if (!messageId) return false; // no id = can't dedup, allow through
+  if (recentMessageIds.has(messageId)) return true; // duplicate
+  recentMessageIds.add(messageId);
+  recentMessageIdOrder.push(messageId);
+  while (recentMessageIdOrder.length > RECENT_MESSAGE_IDS_MAX) {
+    const oldest = recentMessageIdOrder.shift()!;
+    recentMessageIds.delete(oldest);
+  }
+  return false; // first time
+}
+
 function normalizeAllowEntry(entry: string): string {
   return entry
     .trim()
@@ -126,6 +144,12 @@ export async function handleGenericMessage(params: {
 
   const ctx = parseGenericMessage(message);
   const isGroup = ctx.chatType === "group";
+
+  // Dedup: skip if we've already processed this messageId
+  if (ctx.messageId && trackMessageId(ctx.messageId)) {
+    log(`generic: skipping duplicate messageId ${ctx.messageId} from ${ctx.senderId}`);
+    return;
+  }
 
   log(`generic: received message from ${ctx.senderId} in ${ctx.chatId} (${ctx.chatType})`);
 
