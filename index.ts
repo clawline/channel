@@ -156,6 +156,11 @@ export {
   type StarredMessage,
 } from "./src/generic/pins-stars.js";
 
+export {
+  handleMessageInject,
+  type MessageInjectData,
+} from "./src/generic/inject.js";
+
 export default defineChannelPluginEntry({
   id: "clawline",
   name: "Clawline",

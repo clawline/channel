@@ -74,6 +74,30 @@ export const genericOutbound: ChannelOutboundAdapter = {
   textChunkLimit: 4000,
   sendText: async (ctx) => {
     const { cfg, to, text } = ctx;
+
+    // Cross-agent inject: target format "agent:{targetAgentId}:{senderId}"
+    // e.g. message(target="agent:nexora-docs:cobra", text="update the docs")
+    if (to.startsWith("agent:")) {
+      const parts = to.substring(6).split(":");
+      const targetAgentId = parts[0];
+      const senderId = parts[1] || "unknown";
+      const sourceAgentId = extractAgentIdFromOutboundContext(ctx);
+      const { handleMessageInject } = await import("./inject.js");
+      const injectResult = await handleMessageInject({
+        cfg,
+        data: {
+          targetAgentId,
+          senderId,
+          text: text ?? "",
+          sourceAgentId,
+        },
+      });
+      if (!injectResult.ok) {
+        throw new Error(`[clawline outbound] inject failed: ${injectResult.error}`);
+      }
+      return { channel: "clawline", messageId: `inject-${Date.now()}`, chatId: senderId };
+    }
+
     const agentId = extractAgentIdFromOutboundContext(ctx);
     if (!agentId) {
       const errorMsg = `Agent ID could not be resolved for this message. This is a server-side configuration issue.`;
