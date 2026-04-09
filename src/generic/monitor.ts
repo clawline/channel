@@ -481,24 +481,6 @@ async function monitorWebSocket(params: {
     }
   };
 
-  // Set up cross-agent inject handler
-  wsManager.onMessageInject = async (data) => {
-    try {
-      const { handleMessageInject } = await import("./inject.js");
-      const result = await handleMessageInject({
-        cfg,
-        data,
-        runtime,
-        chatHistories,
-      });
-      if (!result.ok) {
-        error(`generic: inject failed: ${result.error}`);
-      }
-    } catch (err) {
-      error(`generic: error handling inject: ${String(err)}`);
-    }
-  };
-
   // Set up status update handler
   wsManager.onStatusUpdate = async (data) => {
     try {

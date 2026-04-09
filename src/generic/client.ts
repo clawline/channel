@@ -276,7 +276,6 @@ export interface GenericClientManager {
   getConnectionCount(chatId: string): number;
   getConnectionStats(): ConnectionStats;
   onMessageReceive?: (message: InboundMessage) => void;
-  onMessageInject?: (data: { targetAgentId: string; senderId: string; senderName?: string; text: string; chatId?: string; sourceAgentId?: string; messageId?: string }) => void;
   onStatusUpdate?: (data: MessageStatusUpdate) => void;
   onClientConnect?: (params: { chatId?: string; ws: WebSocket; userId?: string }) => void;
   onClientDisconnect?: (params: { chatId?: string; ws: WebSocket; userId?: string }) => void;
@@ -535,24 +534,6 @@ abstract class GenericClientManagerBase implements GenericClientManager {
             inbound.agentId = selectedAgentId;
           }
           this.onMessageReceive?.(inbound);
-          break;
-        }
-        case "message.inject": {
-          const injectData = message.data as { targetAgentId?: string; text?: string; chatId?: string; sourceAgentId?: string; messageId?: string } | undefined;
-          if (!injectData?.targetAgentId || !injectData?.text) {
-            this.logRejectedEvent(sourceId, message.type, "missing targetAgentId or text");
-            break;
-          }
-          const resolvedSenderId = authUser?.senderId || (state?.currentChatId ?? "");
-          this.onMessageInject?.({
-            targetAgentId: injectData.targetAgentId,
-            senderId: resolvedSenderId,
-            senderName: authUser?.senderId,
-            text: injectData.text,
-            chatId: injectData.chatId || state?.currentChatId,
-            sourceAgentId: injectData.sourceAgentId || this.getSelectedAgentId(ws) || undefined,
-            messageId: injectData.messageId,
-          });
           break;
         }
         case "history.get": {
@@ -853,7 +834,6 @@ abstract class GenericClientManagerBase implements GenericClientManager {
   }
 
   onMessageReceive?: (message: InboundMessage) => void;
-  onMessageInject?: (data: { targetAgentId: string; senderId: string; senderName?: string; text: string; chatId?: string; sourceAgentId?: string; messageId?: string }) => void;
   onStatusUpdate?: (data: MessageStatusUpdate) => void;
   onClientConnect?: (params: { chatId?: string; ws: WebSocket; userId?: string }) => void;
   onClientDisconnect?: (params: { chatId?: string; ws: WebSocket; userId?: string }) => void;

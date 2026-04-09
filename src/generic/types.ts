@@ -244,8 +244,6 @@ export type WSEventType =
   | "suggestion.response"
   | "tool.start"
   | "tool.end"
-  | "message.inject"
-  | "message.inject.confirm"
   | "ping"
   | "pong";
 
