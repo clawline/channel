@@ -35,6 +35,7 @@ import {
   type RelayFrame,
   type RelayServerCloseFrame,
   type RelayServerEventFrame,
+  type RelayServerPersistFrame,
   type RelayServerRejectFrame,
   type RelayTrustedAuthUser,
 } from "./relay-protocol.js";
@@ -1250,6 +1251,21 @@ class GenericRelayManager extends GenericClientManagerBase {
     if (this.backendSocket?.readyState === WebSocket.OPEN) {
       this.backendSocket.ping();
     }
+  }
+
+  override sendToClient(chatId: string, event: WSEvent): boolean {
+    const sent = super.sendToClient(chatId, event);
+    if (!sent && this.backendSocket?.readyState === WebSocket.OPEN && this.backendReady) {
+      // No client online — send persist frame so gateway writes to Supabase
+      const frame: RelayServerPersistFrame = {
+        type: "relay.server.persist",
+        channelId: this.config.relay?.channelId || "",
+        event,
+        timestamp: Date.now(),
+      };
+      this.backendSocket.send(JSON.stringify(frame));
+    }
+    return sent;
   }
 
   private connectBackend(): void {

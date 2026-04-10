@@ -82,6 +82,14 @@ export type RelayServerCloseFrame = {
   timestamp: number;
 };
 
+export type RelayServerPersistFrame = {
+  type: "relay.server.persist";
+  channelId: string;
+  event: WSEvent;
+  senderId?: string;
+  timestamp: number;
+};
+
 export type RelayFrame =
   | RelayBackendHelloFrame
   | RelayBackendAckFrame
@@ -91,7 +99,8 @@ export type RelayFrame =
   | RelayClientEventFrame
   | RelayServerEventFrame
   | RelayServerRejectFrame
-  | RelayServerCloseFrame;
+  | RelayServerCloseFrame
+  | RelayServerPersistFrame;
 
 export function buildRelayAuthUrl(url: string, query: RelayConnectionQuery): string {
   const seed = query.rawQuery ? `${url}${query.rawQuery.startsWith("?") ? query.rawQuery : `?${query.rawQuery}`}` : url;
