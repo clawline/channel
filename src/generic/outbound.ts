@@ -41,6 +41,19 @@ function extractAgentIdFromOutboundContext(ctx: {
     if (found) return found.id;
   }
 
+  // Strategy 4: Use identity.name directly as agentId fallback
+  // Covers sub-agents whose workspace path doesn't follow the workspace-{id} pattern
+  if (ctx.identity?.name) {
+    return ctx.identity.name;
+  }
+
+  // Strategy 5: If workspace is exactly "workspace" (no suffix), it's the default agent
+  if (workspaceDir && /\/workspace\/?$/.test(workspaceDir)) {
+    const defaultAgent = agentsList?.list?.find((a) => (a as Record<string, unknown>).isDefault === true);
+    if (defaultAgent) return defaultAgent.id;
+    return 'main'; // conventional default
+  }
+
   return undefined;
 }
 
