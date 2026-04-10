@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
 import type { InboundMessage } from "./types.js";
+import { getGenericWSManager } from "./client.js";
 
 export type DelegateDirective = {
   targetAgentId: string;
@@ -93,6 +94,26 @@ export async function dispatchDelegates(params: {
 
       log(`delegate: dispatching to agent=${directive.targetAgentId} from sender=${senderId} (${directive.message.length} chars)`);
       await handleMessage({ cfg, message, runtime });
+
+      // Send the delegate message to the client so it appears in target agent's chat as a "user" message.
+      // The gateway relay will also persist this to Supabase via persistMessage().
+      const wsManager = getGenericWSManager();
+      if (wsManager) {
+        wsManager.sendToClient(senderId, {
+          type: "message.send" as import("./types.js").WSEventType,
+          data: {
+            messageId: message.messageId,
+            chatId: senderId,
+            content: directive.message,
+            contentType: "text",
+            agentId: directive.targetAgentId,
+            senderId,
+            echo: true,
+            timestamp: message.timestamp,
+          },
+        });
+      }
+
       log(`delegate: dispatched to agent=${directive.targetAgentId} successfully`);
     } catch (err) {
       log(`delegate: failed to dispatch to agent=${directive.targetAgentId}: ${err}`);
