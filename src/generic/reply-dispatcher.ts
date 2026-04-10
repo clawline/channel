@@ -7,6 +7,7 @@ import { logTypingFailure } from "openclaw/plugin-sdk/channel-feedback";
 import type { GenericChannelConfig } from "./types.js";
 import { getGenericRuntime } from "./runtime.js";
 import { sendMessageGeneric, sendThinkingIndicator, sendStreamDelta } from "./send.js";
+import { extractDelegateDirectives, stripDelegateTags, dispatchDelegates, type HandleMessageFn } from "./delegate.js";
 
 export type CreateGenericReplyDispatcherParams = {
   cfg: OpenClawConfig;
@@ -16,6 +17,7 @@ export type CreateGenericReplyDispatcherParams = {
   chatType: "direct" | "group";
   replyToMessageId?: string;
   sessionKey?: string;
+  handleMessage?: HandleMessageFn;
 };
 
 export function createGenericReplyDispatcher(params: CreateGenericReplyDispatcherParams) {
@@ -93,11 +95,30 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
       typingCallbacks,
       deliver: async (payload: ReplyPayload) => {
         params.runtime.log?.(`generic deliver called: text=${payload.text?.slice(0, 100)}`);
-        const text = payload.text ?? "";
+        let text = payload.text ?? "";
 
         if (!text.trim()) {
           params.runtime.log?.(`generic: empty text, skipping delivery`);
           return;
+        }
+
+        // Cross-agent delegate: extract and dispatch <<DELEGATE:agentId>>message<</DELEGATE>> tags
+        if (params.handleMessage) {
+          const { directives, cleanedText } = extractDelegateDirectives(text);
+          if (directives.length > 0) {
+            text = cleanedText;
+            try {
+              await dispatchDelegates({
+                cfg,
+                directives,
+                senderId: chatId,
+                runtime: params.runtime,
+                handleMessage: params.handleMessage,
+              });
+            } catch (err) {
+              params.runtime.log?.(`generic: delegate dispatch error: ${err}`);
+            }
+          }
         }
 
         if (streamingEnabled) {
@@ -134,8 +155,11 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
   if (streamingEnabled) {
     params.runtime.log?.(`generic: streaming enabled, injecting onPartialReply for chatId=${chatId}`);
     (replyOptions as any).onPartialReply = (payload: ReplyPayload) => {
-      const delta = payload.text;
+      let delta = payload.text;
       if (!delta) return;
+      // Strip DELEGATE tags from streaming preview to avoid raw tags flashing
+      delta = stripDelegateTags(delta);
+      if (!delta.trim()) return;
       sendStreamDelta({
         cfg,
         to: `chat:${chatId}`,
