@@ -56,6 +56,7 @@ const MessageReceiveSchema = z.object({
   timestamp: z.number(),
   parentId: z.string().optional(),
   threadId: z.string().min(1).max(128).optional(),
+  meta: z.record(z.string(), z.unknown()).optional(),
 });
 
 const TypingSchema = z.object({

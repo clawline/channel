@@ -28,6 +28,8 @@ export type InboundMessage = {
   timestamp: number;
   parentId?: string;
   threadId?: string;
+  /** Optional metadata. source="api" marks messages sent via POST /api/chat direct endpoint. */
+  meta?: Record<string, unknown>;
 };
 
 // Outbound message (Server → H5)
