@@ -5,8 +5,12 @@ import type { ResolvedGenericAccount, GenericChannelConfig } from "./types.js";
 import { genericOutbound } from "./outbound.js";
 import { probeGeneric } from "./probe.js";
 import { sendMessageGeneric } from "./send.js";
-import { clawlineThreadingAdapter } from "./threading.js";
+import { clawlineThreadingAdapter, threadConversationId } from "./threading.js";
 import { clawlineBindingsProvider } from "./bindings.js";
+
+function stripTargetPrefix(to: string): string {
+  return to.replace(/^(user|chat):/, "");
+}
 
 const meta = {
   id: "clawline",
@@ -186,6 +190,20 @@ export const genericPlugin: ChannelPlugin<ResolvedGenericAccount> = {
         return target;
       }
       return `user:${target}`;
+    },
+    resolveInboundConversation: ({ to, conversationId, threadId }: {
+      to?: string;
+      conversationId?: string;
+      threadId?: string | number | null;
+      isGroup?: boolean;
+    }) => {
+      const chatId = stripTargetPrefix(conversationId || to || "");
+      if (!chatId) return null;
+      const tid = threadId != null ? String(threadId) : undefined;
+      return {
+        conversationId: tid ? threadConversationId(tid) : chatId,
+        parentConversationId: tid ? chatId : undefined,
+      };
     },
     targetResolver: {
       looksLikeId: (id) => {
