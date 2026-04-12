@@ -5,6 +5,14 @@ import { inferMediaTypeFromMime, inferMimeTypeFromSource } from "./media.js";
 import { sendMessageGeneric, sendMediaGeneric } from "./send.js";
 import { getGenericWSManager } from "./client.js";
 
+/** Extract threadId from outbound context (SDK passes it but the type may not expose it) */
+function extractThreadId(ctx: Record<string, unknown>): string | undefined {
+  const raw = ctx.threadId;
+  if (raw == null) return undefined;
+  const str = String(raw);
+  return str || undefined;
+}
+
 /**
  * Extract agentId from outbound context.
  * OpenClaw SDK doesn't pass agentId directly in ChannelOutboundContext,
@@ -94,7 +102,8 @@ export const genericOutbound: ChannelOutboundAdapter = {
       sendErrorToClient(to, 'AGENT_ID_MISSING', errorMsg);
       throw new Error(`[clawline outbound] agentId required but could not be extracted for sendText to=${to}`);
     }
-    const result = await sendMessageGeneric({ cfg, to, text, agentId });
+    const threadId = extractThreadId(ctx as Record<string, unknown>);
+    const result = await sendMessageGeneric({ cfg, to, text, agentId, threadId });
     return { channel: "clawline", ...result };
   },
   sendMedia: async (ctx) => {
@@ -106,6 +115,7 @@ export const genericOutbound: ChannelOutboundAdapter = {
       sendErrorToClient(to, 'AGENT_ID_MISSING', errorMsg);
       throw new Error(`[clawline outbound] agentId required but could not be extracted for sendMedia to=${to}`);
     }
+    const threadId = extractThreadId(ctx as Record<string, unknown>);
     const mimeType = mediaUrl ? inferMimeTypeFromSource(mediaUrl) : undefined;
     const inferredType = mimeType ? inferMediaTypeFromMime(mimeType) : undefined;
 
@@ -128,12 +138,13 @@ export const genericOutbound: ChannelOutboundAdapter = {
         mimeType,
         caption: text,
         agentId,
+        threadId,
       });
       return { channel: "clawline", ...result };
     }
 
     // No media URL — send as plain text
-    const result = await sendMessageGeneric({ cfg, to, text: text ?? "", agentId });
+    const result = await sendMessageGeneric({ cfg, to, text: text ?? "", agentId, threadId });
     return { channel: "clawline", ...result };
   },
 };

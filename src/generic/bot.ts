@@ -113,6 +113,7 @@ export function parseGenericMessage(message: InboundMessage): GenericMessageCont
     mediaUrl: message.mediaUrl,
     mimeType: message.mimeType,
     parentId: message.parentId,
+    threadId: message.threadId,
   };
 }
 
@@ -344,6 +345,10 @@ export async function handleGenericMessage(params: {
       CommandAuthorized: isSlashCommand,
       OriginatingChannel: "clawline" as const,
       OriginatingTo: genericTo,
+      NativeChannelId: ctx.chatId,
+      MessageThreadId: ctx.threadId ?? undefined,
+      ReplyToId: ctx.parentId ?? undefined,
+      ThreadParentId: ctx.threadId ? ctx.chatId : undefined,
       ...mediaPayload, // Add MediaPath, MediaType, MediaUrl, MediaPaths, etc.
     });
 

@@ -19,6 +19,7 @@ export type SendGenericMessageParams = {
   mimeType?: string;
   chatType?: "direct" | "group";
   agentId?: string;
+  threadId?: string;
   meta?: OutboundMessage["meta"];
 };
 
@@ -146,7 +147,7 @@ function normalizeTarget(to: string): { chatId: string; type: "user" | "chat" } 
 }
 
 export async function sendMessageGeneric(params: SendGenericMessageParams): Promise<GenericSendResult> {
-  const { cfg, to, text, replyToMessageId, contentType = "text", mediaUrl, mimeType, chatType, agentId, meta } =
+  const { cfg, to, text, replyToMessageId, contentType = "text", mediaUrl, mimeType, chatType, agentId, threadId, meta } =
     params;
   const genericCfg = cfg.channels?.["clawline"] as GenericChannelConfig | undefined;
 
@@ -182,6 +183,7 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
     replyTo: replyToMessageId,
     timestamp: Date.now(),
     ...(agentId ? { agentId } : {}),
+    ...(threadId ? { threadId } : {}),
     meta: resolvedMeta,
   };
 
@@ -301,9 +303,10 @@ export async function sendMediaGeneric(params: {
   replyToMessageId?: string;
   chatType?: "direct" | "group";
   agentId?: string;
+  threadId?: string;
   meta?: OutboundMessage["meta"];
 }): Promise<GenericSendResult> {
-  const { cfg, to, mediaUrl, mediaType, mimeType, caption = "", replyToMessageId, chatType, agentId, meta } = params;
+  const { cfg, to, mediaUrl, mediaType, mimeType, caption = "", replyToMessageId, chatType, agentId, threadId, meta } = params;
 
   return sendMessageGeneric({
     cfg,
@@ -315,6 +318,7 @@ export async function sendMediaGeneric(params: {
     replyToMessageId,
     chatType,
     agentId,
+    threadId,
     meta,
   });
 }

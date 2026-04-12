@@ -55,6 +55,7 @@ const MessageReceiveSchema = z.object({
   mimeType: z.string().optional(),
   timestamp: z.number(),
   parentId: z.string().optional(),
+  threadId: z.string().min(1).max(128).optional(),
 });
 
 const TypingSchema = z.object({

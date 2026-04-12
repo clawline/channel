@@ -27,6 +27,7 @@ export type InboundMessage = {
   mimeType?: string;
   timestamp: number;
   parentId?: string;
+  threadId?: string;
 };
 
 // Outbound message (Server → H5)
@@ -51,6 +52,7 @@ export type OutboundMessage = {
   timestamp: number;
   /** Agent that produced this message (for client-side isolation) */
   agentId?: string;
+  threadId?: string;
   meta?: OutboundMessageMeta;
 };
 
@@ -67,6 +69,7 @@ export type GenericMessageContext = {
   // MIME type for media content
   mimeType?: string;
   parentId?: string;
+  threadId?: string;
 };
 
 export type GenericSendResult = {

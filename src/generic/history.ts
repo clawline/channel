@@ -19,6 +19,7 @@ export type HistoryMessageRecord = {
   senderName?: string;
   chatType?: "direct" | "group";
   agentId?: string;
+  threadId?: string;
 };
 
 function normalizeHistoryAgentId(value?: string | null): string | undefined {
@@ -155,6 +156,7 @@ export function appendInboundHistoryMessage(message: InboundMessage): void {
     senderName: message.senderName,
     chatType: message.chatType,
     agentId: message.agentId,
+    threadId: message.threadId,
   });
 }
 
@@ -177,6 +179,7 @@ export function appendOutboundHistoryMessage(
     replyTo: message.replyTo,
     chatType: meta?.chatType,
     agentId: meta?.agentId,
+    threadId: message.threadId,
   });
 }
 

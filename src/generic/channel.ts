@@ -5,6 +5,8 @@ import type { ResolvedGenericAccount, GenericChannelConfig } from "./types.js";
 import { genericOutbound } from "./outbound.js";
 import { probeGeneric } from "./probe.js";
 import { sendMessageGeneric } from "./send.js";
+import { clawlineThreadingAdapter } from "./threading.js";
+import { clawlineBindingsProvider } from "./bindings.js";
 
 const meta = {
   id: "clawline",
@@ -47,10 +49,12 @@ export const genericPlugin: ChannelPlugin<ResolvedGenericAccount> = {
   conversationBindings: {
     supportsCurrentConversationBinding: true,
   },
+  threading: clawlineThreadingAdapter,
+  bindings: clawlineBindingsProvider,
   capabilities: {
-    chatTypes: ["direct", "channel"],
+    chatTypes: ["direct", "channel", "thread"],
     polls: false,
-    threads: false,
+    threads: true,
     media: true,
     reactions: false,
     edit: false,
