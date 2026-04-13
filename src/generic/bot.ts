@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
 import {
@@ -326,6 +327,14 @@ export async function handleGenericMessage(params: {
       });
     }
 
+    // Generate a virtual threadId for thread binding support (similar to Discord autoThread).
+    // This allows ACP spawn --thread auto to read MessageThreadId from the session entry.
+    // Reuse existing threadId from ACP binding if one exists for this chat, to keep
+    // threadId consistent across the ACP session's lifetime.
+    const { findThreadIdByChatId } = await import("./session-bindings.js");
+    const existingThreadId = findThreadIdByChatId(ctx.chatId);
+    const virtualThreadId = ctx.threadId ?? existingThreadId ?? `clawline-thread-${randomUUID()}`;
+
     const ctxPayload = core.channel.reply.finalizeInboundContext({
       Body: combinedBody,
       RawBody: normalizedRawBody || ctx.content,
@@ -346,9 +355,9 @@ export async function handleGenericMessage(params: {
       OriginatingChannel: "clawline" as const,
       OriginatingTo: genericTo,
       NativeChannelId: ctx.chatId,
-      MessageThreadId: ctx.threadId ?? undefined,
+      MessageThreadId: virtualThreadId,
       ReplyToId: ctx.parentId ?? undefined,
-      ThreadParentId: ctx.threadId ? ctx.chatId : undefined,
+      ThreadParentId: ctx.chatId,
       ...mediaPayload, // Add MediaPath, MediaType, MediaUrl, MediaPaths, etc.
     });
 

@@ -4,6 +4,8 @@ import type { ReplyPayload } from "openclaw/plugin-sdk/reply-runtime";
 import { createReplyReferencePlanner } from "openclaw/plugin-sdk/reply-runtime";
 import { createReplyPrefixContext, createTypingCallbacks } from "openclaw/plugin-sdk/channel-runtime";
 import { logTypingFailure } from "openclaw/plugin-sdk/channel-feedback";
+import { getSessionBindingService } from "openclaw/plugin-sdk/conversation-runtime";
+import { findThreadIdByChatId } from "./session-bindings.js";
 import type { GenericChannelConfig } from "./types.js";
 import { getGenericRuntime } from "./runtime.js";
 import { sendMessageGeneric, sendThinkingIndicator, sendStreamDelta } from "./send.js";
@@ -23,6 +25,40 @@ export type CreateGenericReplyDispatcherParams = {
 export function createGenericReplyDispatcher(params: CreateGenericReplyDispatcherParams) {
   const core = getGenericRuntime();
   const { cfg, agentId, chatId, chatType, replyToMessageId, sessionKey } = params;
+
+  // Resolve threadId from session bindings (for ACP thread-bound sessions).
+  // Called lazily on each deliver so that bindings created mid-dispatch (e.g., ACP spawn)
+  // are picked up immediately.
+  function resolveThreadId(): string | undefined {
+    try {
+      const bindingService = getSessionBindingService();
+      // Try by session key first
+      if (sessionKey) {
+        for (const binding of bindingService.listBySession(sessionKey)) {
+          const convId = binding.conversation?.conversationId;
+          if (convId?.startsWith("thread:")) {
+            return convId.slice(7);
+          }
+        }
+      }
+      // Try by conversation ref (for ACP sessions bound to this chat)
+      const binding = bindingService.resolveByConversation({
+        channel: "clawline",
+        accountId: "default",
+        conversationId: chatId,
+      });
+      if (binding) {
+        const convId = binding.conversation?.conversationId;
+        if (convId?.startsWith("thread:")) {
+          return convId.slice(7);
+        }
+      }
+      // Try by parent conversation (ACP binding has parentConversationId = chatId)
+      return findThreadIdByChatId(chatId);
+    } catch {
+      return undefined;
+    }
+  }
 
   const prefixContext = createReplyPrefixContext({
     cfg,
@@ -94,7 +130,8 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
       humanDelay: core.channel.reply.resolveHumanDelayConfig(cfg, agentId),
       typingCallbacks,
       deliver: async (payload: ReplyPayload) => {
-        params.runtime.log?.(`generic deliver called: text=${payload.text?.slice(0, 100)}`);
+        const resolvedThreadId = resolveThreadId();
+        params.runtime.log?.(`generic deliver called: text=${payload.text?.slice(0, 100)}, resolvedThreadId=${resolvedThreadId ?? "none"}`);
         let text = payload.text ?? "";
 
         if (!text.trim()) {
@@ -143,6 +180,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
             contentType: "text",
             chatType,
             agentId,
+            threadId: resolvedThreadId,
           });
         }
 

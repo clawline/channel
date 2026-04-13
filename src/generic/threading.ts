@@ -48,6 +48,12 @@ export const clawlineThreadingAdapter: ChannelThreadingAdapter = {
       return params.toolContext?.currentThreadTs;
     }
 
+    // If a thread was already created during inbound processing (like Discord's autoThread),
+    // reuse it instead of generating a new one
+    if (params.toolContext?.currentThreadTs) {
+      return params.toolContext.currentThreadTs;
+    }
+
     const channelId = params.toolContext?.currentChannelId;
     if (!channelId) return undefined;
 

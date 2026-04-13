@@ -31,6 +31,7 @@ import { getConversationSummaries, getRecentHistoryMessages } from "./history.js
 import { listGenericAgents, resolveGenericAgentId, resolveGenericAgentWorkspaceCandidates } from "./agents.js";
 import { isGenericAgentAllowed } from "./auth.js";
 import { consumeStreamState, pruneExpiredStreams } from "./stream-state.js";
+import { createClawlineSessionBindingAdapter } from "./session-bindings.js";
 
 export type MonitorGenericOpts = {
   config?: OpenClawConfig;
@@ -123,6 +124,10 @@ async function monitorWebSocket(params: {
 
   const wsManager = createGenericWSManager(genericCfg);
   currentWSManager = wsManager;
+
+  // Register session binding adapter for thread support (ACP --thread auto)
+  const bindingAdapter = createClawlineSessionBindingAdapter(params.cfg.channels?.["clawline"] ? "default" : "default");
+  bindingAdapter.register();
 
   const chatHistories = new Map<string, HistoryEntry[]>();
   const sendAgentList = (ws: Parameters<typeof wsManager.sendDirect>[0], requestId?: string) => {
@@ -736,6 +741,7 @@ async function monitorWebSocket(params: {
   return new Promise((resolve, reject) => {
     const cleanup = () => {
       clearInterval(streamPruneInterval);
+      bindingAdapter.unregister();
       if (currentWSManager === wsManager) {
         destroyGenericWSManager();
         currentWSManager = null;

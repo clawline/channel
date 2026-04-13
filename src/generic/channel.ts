@@ -1,11 +1,12 @@
 import type { ChannelPlugin, OpenClawConfig } from "openclaw/plugin-sdk/core";
 import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/core";
 import { PAIRING_APPROVED_MESSAGE } from "openclaw/plugin-sdk/channel-status";
+import { buildOutboundBaseSessionKey } from "openclaw/plugin-sdk/routing";
 import type { ResolvedGenericAccount, GenericChannelConfig } from "./types.js";
 import { genericOutbound } from "./outbound.js";
 import { probeGeneric } from "./probe.js";
 import { sendMessageGeneric } from "./send.js";
-import { clawlineThreadingAdapter, threadConversationId } from "./threading.js";
+import { clawlineThreadingAdapter } from "./threading.js";
 import { clawlineBindingsProvider } from "./bindings.js";
 
 function stripTargetPrefix(to: string): string {
@@ -52,7 +53,8 @@ export const genericPlugin: ChannelPlugin<ResolvedGenericAccount> = {
   },
   conversationBindings: {
     supportsCurrentConversationBinding: true,
-  },
+    defaultTopLevelPlacement: "child" as const,
+  } as any,
   threading: clawlineThreadingAdapter,
   bindings: clawlineBindingsProvider,
   capabilities: {
@@ -191,18 +193,38 @@ export const genericPlugin: ChannelPlugin<ResolvedGenericAccount> = {
       }
       return `user:${target}`;
     },
-    resolveInboundConversation: ({ to, conversationId, threadId }: {
-      to?: string;
-      conversationId?: string;
+    resolveOutboundSessionRoute: (params: {
+      cfg: OpenClawConfig;
+      agentId: string;
+      accountId?: string | null;
+      target: string;
+      resolvedTarget?: { to: string; kind: string; display?: string; source: string };
+      replyToId?: string | null;
       threadId?: string | number | null;
-      isGroup?: boolean;
     }) => {
-      const chatId = stripTargetPrefix(conversationId || to || "");
-      if (!chatId) return null;
-      const tid = threadId != null ? String(threadId) : undefined;
+      const target = params.target.trim();
+      const peerId = stripTargetPrefix(target);
+      if (!peerId) return null;
+
+      const isDm = target.startsWith("user:") || (!target.startsWith("chat:") && !target.startsWith("channel:"));
+      const peer = { kind: (isDm ? "direct" : "channel") as "direct" | "channel", id: peerId };
+      const baseSessionKey = buildOutboundBaseSessionKey({
+        cfg: params.cfg,
+        agentId: params.agentId,
+        channel: "clawline",
+        accountId: params.accountId,
+        peer,
+      });
+      const threadId = params.threadId != null ? String(params.threadId) : undefined;
+
       return {
-        conversationId: tid ? threadConversationId(tid) : chatId,
-        parentConversationId: tid ? chatId : undefined,
+        sessionKey: baseSessionKey,
+        baseSessionKey,
+        peer,
+        chatType: isDm ? "direct" as const : "channel" as const,
+        from: isDm ? `clawline:${peerId}` : `clawline:channel:${peerId}`,
+        to: isDm ? `user:${peerId}` : `channel:${peerId}`,
+        threadId,
       };
     },
     targetResolver: {

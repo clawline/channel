@@ -8,9 +8,17 @@ import { getGenericWSManager } from "./client.js";
 /** Extract threadId from outbound context (SDK passes it but the type may not expose it) */
 function extractThreadId(ctx: Record<string, unknown>): string | undefined {
   const raw = ctx.threadId;
-  if (raw == null) return undefined;
-  const str = String(raw);
-  return str || undefined;
+  if (raw != null) {
+    const str = String(raw);
+    if (str) return str;
+  }
+  // Fallback: derive threadId from ACP sessionKey (format: "agent:<id>:acp:<uuid>")
+  const sessionKey = ctx.sessionKey;
+  if (typeof sessionKey === 'string') {
+    const acpMatch = sessionKey.match(/^agent:[^:]+:acp:(.+)$/);
+    if (acpMatch?.[1]) return `clawline-thread-${acpMatch[1]}`;
+  }
+  return undefined;
 }
 
 /**
@@ -24,7 +32,14 @@ function extractAgentIdFromOutboundContext(ctx: {
   mediaAccess?: { workspaceDir?: string };
   mediaLocalRoots?: readonly string[];
   identity?: { name?: string; emoji?: string };
+  agentId?: string;
+  sessionKey?: string;
 }): string | undefined {
+  // Strategy 0: Direct agentId on context (SDK may pass it directly)
+  if ((ctx as Record<string, unknown>).agentId) {
+    return String((ctx as Record<string, unknown>).agentId);
+  }
+
   // Strategy 1: Extract from mediaAccess.workspaceDir
   const workspaceDir = ctx.mediaAccess?.workspaceDir;
   if (workspaceDir) {
@@ -62,7 +77,18 @@ function extractAgentIdFromOutboundContext(ctx: {
     return 'main'; // conventional default
   }
 
-  return undefined;
+  // Strategy 6: Extract from sessionKey (format: "agent:<agentId>:...")
+  const sessionKey = (ctx as Record<string, unknown>).sessionKey;
+  if (typeof sessionKey === 'string') {
+    const skMatch = sessionKey.match(/^agent:([^:]+)/);
+    if (skMatch?.[1]) return skMatch[1];
+  }
+
+  // Strategy 7: Final fallback — use 'main' to avoid hard failure
+  // ACP announce paths may not carry workspace/identity context;
+  // defaulting to 'main' allows delivery instead of throwing.
+  console.warn(`[clawline outbound] agentId extraction exhausted all strategies, falling back to 'main'. ctx keys: ${Object.keys(ctx).join(', ')} | identity=${JSON.stringify(ctx.identity)} | workspaceDir=${ctx.mediaAccess?.workspaceDir} | mediaLocalRoots=${JSON.stringify(ctx.mediaLocalRoots)}`);
+  return 'main';
 }
 
 /**
@@ -95,6 +121,8 @@ export const genericOutbound: ChannelOutboundAdapter = {
   textChunkLimit: 4000,
   sendText: async (ctx) => {
     const { cfg, to, text } = ctx;
+    const ctxRecord = ctx as Record<string, unknown>;
+    console.log(`[clawline outbound] sendText called. ctx keys: ${Object.keys(ctxRecord).join(', ')} | sessionKey=${ctxRecord.sessionKey} | threadId=${ctxRecord.threadId}`);
     const agentId = extractAgentIdFromOutboundContext(ctx);
     if (!agentId) {
       const errorMsg = `Agent ID could not be resolved for this message. This is a server-side configuration issue.`;
