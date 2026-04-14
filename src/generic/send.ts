@@ -268,8 +268,9 @@ export async function sendThinkingIndicator(params: {
   eventType: "thinking.start" | "thinking.update" | "thinking.end";
   content?: string;
   agentId?: string;
+  threadId?: string;
 }): Promise<void> {
-  const { cfg, to, eventType, content = "", agentId } = params;
+  const { cfg, to, eventType, content = "", agentId, threadId } = params;
   const genericCfg = cfg.channels?.["clawline"] as GenericChannelConfig | undefined;
 
   if (!genericCfg) {
@@ -288,6 +289,7 @@ export async function sendThinkingIndicator(params: {
           content,
           agentId,
           timestamp: Date.now(),
+          ...(threadId ? { threadId } : {}),
         },
       });
     }
@@ -332,8 +334,9 @@ export async function sendStreamDelta(params: {
   text: string;
   done?: boolean;
   agentId?: string;
+  threadId?: string;
 }): Promise<void> {
-  const { cfg, to, text, done = false, agentId } = params;
+  const { cfg, to, text, done = false, agentId, threadId } = params;
   const genericCfg = cfg.channels?.["clawline"] as GenericChannelConfig | undefined;
 
   if (!genericCfg) {
@@ -358,6 +361,7 @@ export async function sendStreamDelta(params: {
           done,
           timestamp: Date.now(),
           ...(agentId ? { agentId } : {}),
+          ...(threadId ? { threadId } : {}),
         },
       });
     }

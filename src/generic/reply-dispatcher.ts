@@ -74,6 +74,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         to: `chat:${chatId}`,
         eventType: "thinking.start",
         agentId,
+        threadId: resolveThreadId(),
       });
     },
     stop: async () => {
@@ -83,6 +84,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         to: `chat:${chatId}`,
         eventType: "thinking.end",
         agentId,
+        threadId: resolveThreadId(),
       });
     },
     onStartError: (err) => {
@@ -165,6 +167,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
             text: "",
             done: true,
             agentId,
+            threadId: resolvedThreadId,
           });
         }
 
@@ -203,6 +206,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         to: `chat:${chatId}`,
         text: delta,
         agentId,
+        threadId: resolveThreadId(),
       }).catch((err) => {
         params.runtime.log?.(`generic: stream delta send error: ${err}`);
       });
