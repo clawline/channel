@@ -126,7 +126,17 @@ async function monitorWebSocket(params: {
   currentWSManager = wsManager;
 
   // Register session binding adapter for thread support (ACP --thread auto)
-  const bindingAdapter = createClawlineSessionBindingAdapter(params.cfg.channels?.["clawline"] ? "default" : "default");
+  // Pass Supabase credentials when available so ACP sessions are registered in cl_threads
+  const supabaseUrl = process.env.RELAY_SUPABASE_URL;
+  const supabaseKey = process.env.RELAY_SUPABASE_SERVICE_ROLE_KEY;
+  const relayChannelId = genericCfg.relay?.channelId || "";
+  const acpThreadHooks = supabaseUrl && supabaseKey && relayChannelId
+    ? { supabaseUrl, supabaseKey, channelId: relayChannelId }
+    : undefined;
+  const bindingAdapter = createClawlineSessionBindingAdapter(
+    params.cfg.channels?.["clawline"] ? "default" : "default",
+    acpThreadHooks,
+  );
   bindingAdapter.register();
 
   const chatHistories = new Map<string, HistoryEntry[]>();
