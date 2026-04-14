@@ -757,6 +757,22 @@ async function monitorWebSocket(params: {
     });
   };
 
+  wsManager.onThreadUpdate = ({ ws, data, userId }) => {
+    log(`generic: thread.update from user=${userId ?? 'unknown'}, threadId=${data.threadId}`);
+    wsManager.sendDirect(ws, {
+      type: "thread.update" as WSEventType,
+      data: { requestId: data.requestId, error: "Thread operations require relay mode" },
+    });
+  };
+
+  wsManager.onThreadDelete = ({ ws, data, userId }) => {
+    log(`generic: thread.delete from user=${userId ?? 'unknown'}, threadId=${data.threadId}`);
+    wsManager.sendDirect(ws, {
+      type: "thread.delete" as WSEventType,
+      data: { requestId: data.requestId, error: "Thread operations require relay mode" },
+    });
+  };
+
   // Start the WebSocket server
   wsManager.start();
 

@@ -343,6 +343,16 @@ export interface GenericClientManager {
     data: { channelId?: string; status?: string; participantId?: string; page?: number; pageSize?: number; requestId?: string };
     userId?: string;
   }) => void;
+  onThreadUpdate?: (params: {
+    ws: WebSocket;
+    data: { threadId: string; title?: string; status?: string; requestId?: string };
+    userId?: string;
+  }) => void;
+  onThreadDelete?: (params: {
+    ws: WebSocket;
+    data: { threadId: string; requestId?: string };
+    userId?: string;
+  }) => void;
 }
 
 abstract class GenericClientManagerBase implements GenericClientManager {
@@ -837,6 +847,34 @@ abstract class GenericClientManagerBase implements GenericClientManager {
           });
           break;
         }
+        case "thread.update": {
+          const threadUpdateData = message.data as {
+            threadId?: string; title?: string; status?: string; requestId?: string;
+          } | undefined;
+          if (!threadUpdateData?.threadId) {
+            this.logRejectedEvent(sourceId, message.type, "missing threadId");
+            break;
+          }
+          this.onThreadUpdate?.({
+            ws,
+            data: threadUpdateData as { threadId: string; title?: string; status?: string; requestId?: string },
+            userId: authUser?.senderId,
+          });
+          break;
+        }
+        case "thread.delete": {
+          const threadDeleteData = message.data as { threadId?: string; requestId?: string } | undefined;
+          if (!threadDeleteData?.threadId) {
+            this.logRejectedEvent(sourceId, message.type, "missing threadId");
+            break;
+          }
+          this.onThreadDelete?.({
+            ws,
+            data: threadDeleteData as { threadId: string; requestId?: string },
+            userId: authUser?.senderId,
+          });
+          break;
+        }
         case "suggestion.get": {
           const suggestionData = message.data as { requestId?: string; messages?: Array<{ role: string; text: string }> } | undefined;
           this.onSuggestionRequest?.({
@@ -963,6 +1001,16 @@ abstract class GenericClientManagerBase implements GenericClientManager {
   onThreadList?: (params: {
     ws: WebSocket;
     data: { channelId?: string; status?: string; participantId?: string; page?: number; pageSize?: number; requestId?: string };
+    userId?: string;
+  }) => void;
+  onThreadUpdate?: (params: {
+    ws: WebSocket;
+    data: { threadId: string; title?: string; status?: string; requestId?: string };
+    userId?: string;
+  }) => void;
+  onThreadDelete?: (params: {
+    ws: WebSocket;
+    data: { threadId: string; requestId?: string };
     userId?: string;
   }) => void;
 
