@@ -327,6 +327,17 @@ export interface GenericClientManager {
     ws: WebSocket;
     data: ConversationListRequestData;
   }) => void;
+  onThreadCreate?: (params: {
+    chatId: string;
+    ws: WebSocket;
+    data: { parentMessageId: string; title?: string; requestId?: string };
+    userId?: string;
+  }) => void;
+  onThreadGet?: (params: {
+    ws: WebSocket;
+    data: { threadId: string; requestId?: string };
+    userId?: string;
+  }) => void;
 }
 
 abstract class GenericClientManagerBase implements GenericClientManager {
@@ -773,6 +784,42 @@ abstract class GenericClientManagerBase implements GenericClientManager {
           this.onUnpinMessage?.(unpin);
           break;
         }
+        case "thread.create": {
+          const threadData = message.data as { parentMessageId?: string; title?: string; requestId?: string } | undefined;
+          if (!threadData?.parentMessageId) {
+            this.logRejectedEvent(sourceId, message.type, "missing parentMessageId");
+            break;
+          }
+          const resolvedChatIdForThread = this.resolveTargetChatId({
+            ws,
+            incomingChatId: (threadData as Record<string, unknown>).chatId as string | undefined,
+          });
+          if (!resolvedChatIdForThread || !this.isChatAllowed(authUser, resolvedChatIdForThread)) {
+            this.logRejectedEvent(sourceId, message.type, "chatId not allowed for this token");
+            break;
+          }
+          this.subscribeClientToChat(ws, resolvedChatIdForThread);
+          this.onThreadCreate?.({
+            chatId: resolvedChatIdForThread,
+            ws,
+            data: threadData as { parentMessageId: string; title?: string; requestId?: string },
+            userId: authUser?.senderId,
+          });
+          break;
+        }
+        case "thread.get": {
+          const threadGetData = message.data as { threadId?: string; requestId?: string } | undefined;
+          if (!threadGetData?.threadId) {
+            this.logRejectedEvent(sourceId, message.type, "missing threadId");
+            break;
+          }
+          this.onThreadGet?.({
+            ws,
+            data: threadGetData as { threadId: string; requestId?: string },
+            userId: authUser?.senderId,
+          });
+          break;
+        }
         case "suggestion.get": {
           const suggestionData = message.data as { requestId?: string; messages?: Array<{ role: string; text: string }> } | undefined;
           this.onSuggestionRequest?.({
@@ -884,6 +931,17 @@ abstract class GenericClientManagerBase implements GenericClientManager {
     chatId?: string;
     ws: WebSocket;
     data: ConversationListRequestData;
+  }) => void;
+  onThreadCreate?: (params: {
+    chatId: string;
+    ws: WebSocket;
+    data: { parentMessageId: string; title?: string; requestId?: string };
+    userId?: string;
+  }) => void;
+  onThreadGet?: (params: {
+    ws: WebSocket;
+    data: { threadId: string; requestId?: string };
+    userId?: string;
   }) => void;
 
   sendToClient(chatId: string, event: WSEvent): boolean {

@@ -730,6 +730,25 @@ async function monitorWebSocket(params: {
     }
   };
 
+  // Thread event handlers (in relay mode, these are handled by the gateway directly)
+  // These stubs are provided for direct websocket mode forward-compatibility
+  wsManager.onThreadCreate = ({ ws, data, userId }) => {
+    log(`generic: thread.create from user=${userId ?? 'unknown'}, parentMessageId=${data.parentMessageId}`);
+    // In relay mode, handled by gateway. In direct websocket mode, would need Supabase access.
+    wsManager.sendDirect(ws, {
+      type: "thread.create" as WSEventType,
+      data: { requestId: data.requestId, error: "Thread operations require relay mode" },
+    });
+  };
+
+  wsManager.onThreadGet = ({ ws, data, userId }) => {
+    log(`generic: thread.get from user=${userId ?? 'unknown'}, threadId=${data.threadId}`);
+    wsManager.sendDirect(ws, {
+      type: "thread.get" as WSEventType,
+      data: { requestId: data.requestId, error: "Thread operations require relay mode" },
+    });
+  };
+
   // Start the WebSocket server
   wsManager.start();
 
