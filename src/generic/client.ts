@@ -353,6 +353,11 @@ export interface GenericClientManager {
     data: { threadId: string; requestId?: string };
     userId?: string;
   }) => void;
+  onThreadMarkRead?: (params: {
+    ws: WebSocket;
+    data: { threadId: string };
+    userId?: string;
+  }) => void;
 }
 
 abstract class GenericClientManagerBase implements GenericClientManager {
@@ -875,6 +880,19 @@ abstract class GenericClientManagerBase implements GenericClientManager {
           });
           break;
         }
+        case "thread.mark_read": {
+          const threadMarkReadData = message.data as { threadId?: string } | undefined;
+          if (!threadMarkReadData?.threadId) {
+            this.logRejectedEvent(sourceId, message.type, "missing threadId");
+            break;
+          }
+          this.onThreadMarkRead?.({
+            ws,
+            data: threadMarkReadData as { threadId: string },
+            userId: authUser?.senderId,
+          });
+          break;
+        }
         case "suggestion.get": {
           const suggestionData = message.data as { requestId?: string; messages?: Array<{ role: string; text: string }> } | undefined;
           this.onSuggestionRequest?.({
@@ -1011,6 +1029,11 @@ abstract class GenericClientManagerBase implements GenericClientManager {
   onThreadDelete?: (params: {
     ws: WebSocket;
     data: { threadId: string; requestId?: string };
+    userId?: string;
+  }) => void;
+  onThreadMarkRead?: (params: {
+    ws: WebSocket;
+    data: { threadId: string };
     userId?: string;
   }) => void;
 
