@@ -257,6 +257,7 @@ export type WSEventType =
   | "thread.updated"
   | "thread.new_reply"
   | "thread.mark_read"
+  | "thread.search"
   | "ping"
   | "pong";
 

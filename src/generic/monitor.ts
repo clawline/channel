@@ -791,6 +791,14 @@ async function monitorWebSocket(params: {
     });
   };
 
+  wsManager.onThreadSearch = ({ ws, data, userId }) => {
+    log(`generic: thread.search from user=${userId ?? 'unknown'}, threadId=${data.threadId}, query=${data.query}`);
+    wsManager.sendDirect(ws, {
+      type: "thread.search" as WSEventType,
+      data: { error: "Thread operations require relay mode" },
+    });
+  };
+
   // Start the WebSocket server
   wsManager.start();
 

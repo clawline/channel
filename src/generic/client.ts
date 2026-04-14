@@ -358,6 +358,11 @@ export interface GenericClientManager {
     data: { threadId: string };
     userId?: string;
   }) => void;
+  onThreadSearch?: (params: {
+    ws: WebSocket;
+    data: { threadId: string; query: string; requestId?: string };
+    userId?: string;
+  }) => void;
 }
 
 abstract class GenericClientManagerBase implements GenericClientManager {
@@ -893,6 +898,19 @@ abstract class GenericClientManagerBase implements GenericClientManager {
           });
           break;
         }
+        case "thread.search": {
+          const threadSearchData = message.data as { threadId?: string; query?: string; requestId?: string } | undefined;
+          if (!threadSearchData?.threadId || !threadSearchData?.query) {
+            this.logRejectedEvent(sourceId, message.type, "missing threadId or query");
+            break;
+          }
+          this.onThreadSearch?.({
+            ws,
+            data: threadSearchData as { threadId: string; query: string; requestId?: string },
+            userId: authUser?.senderId,
+          });
+          break;
+        }
         case "suggestion.get": {
           const suggestionData = message.data as { requestId?: string; messages?: Array<{ role: string; text: string }> } | undefined;
           this.onSuggestionRequest?.({
@@ -1034,6 +1052,11 @@ abstract class GenericClientManagerBase implements GenericClientManager {
   onThreadMarkRead?: (params: {
     ws: WebSocket;
     data: { threadId: string };
+    userId?: string;
+  }) => void;
+  onThreadSearch?: (params: {
+    ws: WebSocket;
+    data: { threadId: string; query: string; requestId?: string };
     userId?: string;
   }) => void;
 
