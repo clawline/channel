@@ -187,6 +187,8 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
     meta: resolvedMeta,
   };
 
+  console.log(`[clawline send] sendMessageGeneric to=${to} threadId=${threadId ?? "NONE"} msgId=${messageId}`);
+
   // Send via live socket transports in websocket/relay mode.
   if (genericCfg.connectionMode === "websocket" || genericCfg.connectionMode === "relay") {
     const wsManager = getGenericWSManager();
