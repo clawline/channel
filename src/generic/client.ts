@@ -338,6 +338,11 @@ export interface GenericClientManager {
     data: { threadId: string; requestId?: string };
     userId?: string;
   }) => void;
+  onThreadList?: (params: {
+    ws: WebSocket;
+    data: { channelId?: string; status?: string; participantId?: string; page?: number; pageSize?: number; requestId?: string };
+    userId?: string;
+  }) => void;
 }
 
 abstract class GenericClientManagerBase implements GenericClientManager {
@@ -820,6 +825,18 @@ abstract class GenericClientManagerBase implements GenericClientManager {
           });
           break;
         }
+        case "thread.list": {
+          const threadListData = message.data as {
+            channelId?: string; status?: string; participantId?: string;
+            page?: number; pageSize?: number; requestId?: string;
+          } | undefined;
+          this.onThreadList?.({
+            ws,
+            data: threadListData || {},
+            userId: authUser?.senderId,
+          });
+          break;
+        }
         case "suggestion.get": {
           const suggestionData = message.data as { requestId?: string; messages?: Array<{ role: string; text: string }> } | undefined;
           this.onSuggestionRequest?.({
@@ -941,6 +958,11 @@ abstract class GenericClientManagerBase implements GenericClientManager {
   onThreadGet?: (params: {
     ws: WebSocket;
     data: { threadId: string; requestId?: string };
+    userId?: string;
+  }) => void;
+  onThreadList?: (params: {
+    ws: WebSocket;
+    data: { channelId?: string; status?: string; participantId?: string; page?: number; pageSize?: number; requestId?: string };
     userId?: string;
   }) => void;
 

@@ -749,6 +749,14 @@ async function monitorWebSocket(params: {
     });
   };
 
+  wsManager.onThreadList = ({ ws, data, userId }) => {
+    log(`generic: thread.list from user=${userId ?? 'unknown'}, channelId=${data.channelId ?? 'default'}`);
+    wsManager.sendDirect(ws, {
+      type: "thread.list" as WSEventType,
+      data: { requestId: data.requestId, error: "Thread operations require relay mode" },
+    });
+  };
+
   // Start the WebSocket server
   wsManager.start();
 
