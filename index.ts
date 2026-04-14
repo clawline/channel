@@ -156,6 +156,21 @@ export {
   type StarredMessage,
 } from "./src/generic/pins-stars.js";
 
+// Thread types
+export type {
+  Thread,
+  ThreadStatus,
+  ThreadType,
+  ThreadReadStatus,
+  ThreadCreatePayload,
+  ThreadUpdatePayload,
+  ThreadListFilter,
+  ThreadListResponse,
+  ThreadGetResponse,
+  ThreadUpdatedEvent,
+  ThreadNewReplyEvent,
+} from "./src/generic/thread-types.js";
+
 export default defineChannelPluginEntry({
   id: "clawline",
   name: "Clawline",

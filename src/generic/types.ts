@@ -249,6 +249,14 @@ export type WSEventType =
   | "suggestion.response"
   | "tool.start"
   | "tool.end"
+  | "thread.create"
+  | "thread.get"
+  | "thread.list"
+  | "thread.update"
+  | "thread.delete"
+  | "thread.updated"
+  | "thread.new_reply"
+  | "thread.mark_read"
   | "ping"
   | "pong";
 
