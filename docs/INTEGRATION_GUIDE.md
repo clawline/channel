@@ -1,3 +1,5 @@
+> 本文档的规范版本位于 [docs/channel/](../../docs/channel/)，此处仅为引用副本。
+
 # Clawline 接入指南
 
 面向第三方接入方：H5 页面、聊天 App、uni-app、Taro、微信小程序如何接入 `clawline`，把前端会话接到 OpenClaw。

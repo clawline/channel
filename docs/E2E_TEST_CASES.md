@@ -1,3 +1,5 @@
+> 本文档的规范版本位于 [docs/channel/](../../docs/channel/)，此处仅为引用副本。
+
 # E2E Test Cases
 
 最后更新：2026-03-15

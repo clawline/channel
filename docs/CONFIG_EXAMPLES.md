@@ -1,3 +1,5 @@
+> 本文档的规范版本位于 [docs/channel/](../../docs/channel/)，此处仅为引用副本。
+
 # Clawline Configuration Examples
 
 ## Quick Start Guide
