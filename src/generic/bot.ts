@@ -369,6 +369,10 @@ export async function handleGenericMessage(params: {
       chatType: ctx.chatType,
       replyToMessageId: ctx.messageId,
       sessionKey: route.sessionKey,
+      // TH-1: pass the user-supplied threadId (if any) so the dispatcher's
+      // resolveThreadId() can use it as fallback when session bindings haven't
+      // resolved yet. Skip the synthetic random fallback — only pass real ones.
+      inboundThreadId: ctx.threadId ?? existingThreadId,
       handleMessage: handleGenericMessage,
     });
 

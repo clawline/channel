@@ -19,12 +19,20 @@ export type CreateGenericReplyDispatcherParams = {
   chatType: "direct" | "group";
   replyToMessageId?: string;
   sessionKey?: string;
+  /**
+   * The threadId carried by the inbound message that this dispatcher is replying to.
+   * Used as the highest-priority threadId source so the agent's reply lands in the
+   * same thread the user sent from — even when session bindings haven't caught up
+   * (TH-1: previously resolveThreadId silently returned undefined and the reply
+   * leaked into main chat).
+   */
+  inboundThreadId?: string;
   handleMessage?: HandleMessageFn;
 };
 
 export function createGenericReplyDispatcher(params: CreateGenericReplyDispatcherParams) {
   const core = getGenericRuntime();
-  const { cfg, agentId, chatId, chatType, replyToMessageId, sessionKey } = params;
+  const { cfg, agentId, chatId, chatType, replyToMessageId, sessionKey, inboundThreadId } = params;
 
   // Resolve threadId from session bindings (for ACP thread-bound sessions).
   // Called lazily on each deliver so that bindings created mid-dispatch (e.g., ACP spawn)
@@ -54,10 +62,19 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         }
       }
       // Try by parent conversation (ACP binding has parentConversationId = chatId)
-      return findThreadIdByChatId(chatId);
-    } catch {
-      return undefined;
+      const found = findThreadIdByChatId(chatId);
+      if (found) return found;
+    } catch (err) {
+      params.runtime.log?.(`generic: resolveThreadId binding lookup failed: ${err}`);
     }
+    // TH-1 fallback: if no session binding resolves, use the inbound message's
+    // threadId. This guarantees the reply goes to whichever thread the user
+    // posted into, even on first message in a brand-new session.
+    if (inboundThreadId) {
+      params.runtime.log?.(`generic: resolveThreadId falling back to inbound threadId=${inboundThreadId}`);
+      return inboundThreadId;
+    }
+    return undefined;
   }
 
   const prefixContext = createReplyPrefixContext({
