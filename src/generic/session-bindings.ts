@@ -76,10 +76,18 @@ async function registerAcpThread(params: {
       console.log(`[session-binding] ACP thread registered: ${threadId}`);
     } else {
       const errText = await res.text();
-      console.warn(`[session-binding] ACP thread registration failed: ${res.status} ${errText}`);
+      // TH-4: escalate to error — silent warn was missed by ops, leading to
+      // ACP threads existing in-memory but missing from thread.list / DB.
+      console.error(
+        `[session-binding] ACP thread registration REJECTED by Supabase: ` +
+        `HTTP ${res.status} ${errText} — thread ${threadId} will not be persisted.`
+      );
     }
   } catch (err: unknown) {
-    console.warn(`[session-binding] ACP thread registration error:`, (err as Error).message);
+    console.error(
+      `[session-binding] ACP thread registration NETWORK ERROR for ${threadId}: ` +
+      `${(err as Error).message} — thread is in-memory only until next bind retry.`
+    );
   }
 }
 
@@ -187,17 +195,34 @@ export function createClawlineSessionBindingAdapter(
       };
       addRecord(record);
 
-      // Register ACP thread in cl_threads when binding a thread conversation
-      if (hooks && input.conversation.conversationId.startsWith("thread:")) {
+      // Register ACP thread in cl_threads when binding a thread conversation.
+      // TH-4: surface configuration gaps loudly. ACP threads without DB
+      // persistence still work in-memory, but disappear from thread.list,
+      // unread badges break, and reload loses the binding entirely.
+      if (input.conversation.conversationId.startsWith("thread:")) {
         const threadIdRaw = input.conversation.conversationId.slice(7); // strip "thread:" prefix
         const threadId = extractThreadUuid(threadIdRaw);
-        registerAcpThread({
-          threadId,
-          channelId: hooks.channelId,
-          parentConversationId: input.conversation.parentConversationId,
-          metadata: (input.metadata ?? undefined) as Record<string, unknown> | undefined,
-          hooks,
-        }).catch((err) => console.warn("[session-binding] ACP thread registration failed:", err));
+        if (!hooks) {
+          console.warn(
+            `[session-binding] ACP thread ${threadId} bound IN-MEMORY ONLY ` +
+            `(RELAY_SUPABASE_URL / RELAY_SUPABASE_SERVICE_ROLE_KEY not set). ` +
+            `Thread will not appear in thread.list and is lost on plugin restart. ` +
+            `Configure Supabase to enable persistence.`
+          );
+        } else {
+          registerAcpThread({
+            threadId,
+            channelId: hooks.channelId,
+            parentConversationId: input.conversation.parentConversationId,
+            metadata: (input.metadata ?? undefined) as Record<string, unknown> | undefined,
+            hooks,
+          }).catch((err) =>
+            console.error(
+              `[session-binding] ACP thread ${threadId} registration FAILED ` +
+              `(check Supabase reachability + service_role_key): ${err?.message || err}`
+            )
+          );
+        }
       }
 
       return record;
