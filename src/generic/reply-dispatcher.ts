@@ -4,8 +4,6 @@ import type { ReplyPayload } from "openclaw/plugin-sdk/reply-runtime";
 import { createReplyReferencePlanner } from "openclaw/plugin-sdk/reply-runtime";
 import { createReplyPrefixContext, createTypingCallbacks } from "openclaw/plugin-sdk/channel-runtime";
 import { logTypingFailure } from "openclaw/plugin-sdk/channel-feedback";
-import { getSessionBindingService } from "openclaw/plugin-sdk/conversation-runtime";
-import { findThreadIdByChatId } from "./session-bindings.js";
 import type { GenericChannelConfig } from "./types.js";
 import { getGenericRuntime } from "./runtime.js";
 import { sendMessageGeneric, sendThinkingIndicator, sendStreamDelta } from "./send.js";
@@ -21,10 +19,10 @@ export type CreateGenericReplyDispatcherParams = {
   sessionKey?: string;
   /**
    * The threadId carried by the inbound message that this dispatcher is replying to.
-   * Used as the highest-priority threadId source so the agent's reply lands in the
-   * same thread the user sent from — even when session bindings haven't caught up
-   * (TH-1: previously resolveThreadId silently returned undefined and the reply
-   * leaked into main chat).
+   * D4: this is now the SOLE source of threadId. Channel plugin does not look up
+   * session bindings or guess from chatId — the protocol contract is "inbound
+   * decides". ACP threads still flow through here because bot.ts injects the
+   * ACP virtualThreadId into ctx.threadId before constructing the dispatcher.
    */
   inboundThreadId?: string;
   handleMessage?: HandleMessageFn;
@@ -34,47 +32,12 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
   const core = getGenericRuntime();
   const { cfg, agentId, chatId, chatType, replyToMessageId, sessionKey, inboundThreadId } = params;
 
-  // Resolve threadId from session bindings (for ACP thread-bound sessions).
-  // Called lazily on each deliver so that bindings created mid-dispatch (e.g., ACP spawn)
-  // are picked up immediately.
+  // D4: protocol contract — inbound decides. No session-binding lookup,
+  // no findThreadIdByChatId fallback, no silent fallback to undefined.
+  // If the dispatcher's caller wants the reply to land in a thread, it
+  // must pass `inboundThreadId`.
   function resolveThreadId(): string | undefined {
-    try {
-      const bindingService = getSessionBindingService();
-      // Try by session key first
-      if (sessionKey) {
-        for (const binding of bindingService.listBySession(sessionKey)) {
-          const convId = binding.conversation?.conversationId;
-          if (convId?.startsWith("thread:")) {
-            return convId.slice(7);
-          }
-        }
-      }
-      // Try by conversation ref (for ACP sessions bound to this chat)
-      const binding = bindingService.resolveByConversation({
-        channel: "clawline",
-        accountId: "default",
-        conversationId: chatId,
-      });
-      if (binding) {
-        const convId = binding.conversation?.conversationId;
-        if (convId?.startsWith("thread:")) {
-          return convId.slice(7);
-        }
-      }
-      // Try by parent conversation (ACP binding has parentConversationId = chatId)
-      const found = findThreadIdByChatId(chatId);
-      if (found) return found;
-    } catch (err) {
-      params.runtime.log?.(`generic: resolveThreadId binding lookup failed: ${err}`);
-    }
-    // TH-1 fallback: if no session binding resolves, use the inbound message's
-    // threadId. This guarantees the reply goes to whichever thread the user
-    // posted into, even on first message in a brand-new session.
-    if (inboundThreadId) {
-      params.runtime.log?.(`generic: resolveThreadId falling back to inbound threadId=${inboundThreadId}`);
-      return inboundThreadId;
-    }
-    return undefined;
+    return inboundThreadId;
   }
 
   const prefixContext = createReplyPrefixContext({
