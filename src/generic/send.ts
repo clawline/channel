@@ -2,7 +2,7 @@ import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 import { access, readFile } from "node:fs/promises";
 import type { GenericChannelConfig, GenericSendResult, OutboundMessage, WSEventType } from "./types.js";
 import { getGenericWSManager } from "./client.js";
-import { appendOutboundHistoryMessage } from "./history.js";
+// D8: appendOutboundHistoryMessage removed — gateway is source of truth for outbound persistence.
 import { inferMimeTypeFromSource } from "./media.js";
 import { updateMessageStatus } from "./message-status.js";
 import { resolveGenericAgentModel } from "./agents.js";
@@ -198,13 +198,8 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
         data: outboundMessage,
       });
 
-      // Always persist to history — message is a real agent reply regardless of
-      // whether the client is currently connected.  Without this, messages sent
-      // while the user is offline are lost on reconnect (断点续传 regression).
-      appendOutboundHistoryMessage(outboundMessage, {
-        chatType,
-        agentId,
-      });
+      // D8: removed appendOutboundHistoryMessage — gateway persists outbound on backend ack.
+      // Reconnect flow now uses gateway /api/messages/sync (Supabase) instead of local file.
 
       if (sent) {
         // Mark stream as completed at chat-level (断点续传)
@@ -246,10 +241,8 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
   }
 
   if (genericCfg.connectionMode === "webhook") {
-    appendOutboundHistoryMessage(outboundMessage, {
-      chatType,
-      agentId,
-    });
+    // D8: webhook-mode local persistence removed — webhook itself is the response;
+    // gateway/Supabase handles long-term persistence.
   }
 
   // In webhook mode, messages are sent synchronously as HTTP responses

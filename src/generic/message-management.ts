@@ -1,7 +1,7 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 import type { GenericChannelConfig } from "./types.js";
 import { getGenericWSManager } from "./client.js";
-import { removeHistoryMessage, updateHistoryMessage } from "./history.js";
+// D8: removeHistoryMessage / updateHistoryMessage removed — gateway is source of truth.
 
 export type MessageEdit = {
   messageId: string;
@@ -170,12 +170,8 @@ export async function handleMessageEdit(params: {
   // Validate the edit (e.g., check if sender owns the message)
   // For now, we'll allow any edit
   const updatedEdit = editMessage(edit);
-  updateHistoryMessage({
-    chatId: edit.chatId,
-    messageId: edit.messageId,
-    content: updatedEdit.newContent,
-    timestamp: updatedEdit.editedAt,
-  });
+  // D8: local history mirror removed — edit broadcast goes to clients only;
+  // gateway/Supabase tracks message state.
 
   // Broadcast to all clients in the chat
   broadcastMessageEdit({
@@ -196,10 +192,7 @@ export async function handleMessageDelete(params: {
 
   // Validate the deletion (e.g., check if sender owns the message)
   const processedDeletion = deleteMessage(deletion);
-  removeHistoryMessage({
-    chatId: deletion.chatId,
-    messageId: deletion.messageId,
-  });
+  // D8: local history mirror removed — deletion broadcast goes to clients only.
 
   // Broadcast to all clients in the chat
   broadcastMessageDelete({

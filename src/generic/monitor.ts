@@ -27,7 +27,9 @@ import {
 } from "./file-transfer.js";
 import { handleGroupAction } from "./groups.js";
 import { handlePinMessage, handleUnpinMessage } from "./pins-stars.js";
-import { getConversationSummaries, getRecentHistoryMessages } from "./history.js";
+// D8: history.ts removed — local file is no longer source of truth.
+// history.sync / conversation.list WS frames now return empty;
+// clients fall back to gateway /api/messages/sync (Supabase).
 import { listGenericAgents, resolveGenericAgentId, resolveGenericAgentWorkspaceCandidates } from "./agents.js";
 import { isGenericAgentAllowed } from "./auth.js";
 import { consumeStreamState, pruneExpiredStreams } from "./stream-state.js";
@@ -200,13 +202,8 @@ async function monitorWebSocket(params: {
     before?: number;
     agentId?: string;
   }) => {
-    const historyLimit = Math.max(0, params.limit ?? genericCfg.historyLimit ?? 50);
-    const messages = getRecentHistoryMessages({
-      chatId: params.chatId,
-      limit: historyLimit,
-      before: params.before,
-      agentId: params.agentId,
-    });
+    // D8: history.sync now empty; clients fall back to gateway /api/messages/sync.
+    const messages: unknown[] = [];
     wsManager.sendDirect(params.ws, {
       type: "history.sync",
       data: {
@@ -214,7 +211,7 @@ async function monitorWebSocket(params: {
         chatId: params.chatId,
         agentId: params.agentId,
         messages,
-        hasMore: messages.length >= historyLimit,
+        hasMore: false,
         timestamp: Date.now(),
       },
     });
@@ -471,12 +468,8 @@ async function monitorWebSocket(params: {
       type: "conversation.list",
       data: {
         requestId: data.requestId,
-        conversations: getConversationSummaries({
-          userId: authUser?.senderId,
-          agentId: effectiveAgentId,
-          chatType: data.chatType,
-          limit: data.limit,
-        }),
+        // D8: local history file removed; clients should use gateway REST for conversation listing.
+        conversations: [],
         timestamp: Date.now(),
       },
     });

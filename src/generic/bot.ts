@@ -11,7 +11,7 @@ import {
   type HistoryEntry,
 } from "openclaw/plugin-sdk/reply-history";
 import type { GenericChannelConfig, GenericMessageContext, InboundMessage } from "./types.js";
-import { appendInboundHistoryMessage } from "./history.js";
+// D8: appendInboundHistoryMessage removed — gateway persists via Supabase as ack-time source of truth.
 import { getGenericRuntime } from "./runtime.js";
 import { createGenericReplyDispatcher } from "./reply-dispatcher.js";
 import { resolveGenericMediaList, buildMediaPayload } from "./media.js";
@@ -210,7 +210,7 @@ export async function handleGenericMessage(params: {
     }
   }
 
-  appendInboundHistoryMessage(message);
+  // D8: removed appendInboundHistoryMessage — gateway persists messages on ack.
 
   try {
     // Build target identifiers
