@@ -363,6 +363,16 @@ export interface GenericClientManager {
     data: { threadId: string; query: string; requestId?: string };
     userId?: string;
   }) => void;
+  onModelsListRequest?: (params: {
+    chatId?: string;
+    ws: WebSocket;
+    data: { agentId?: string; requestId?: string };
+  }) => void;
+  onModelSwitch?: (params: {
+    chatId?: string;
+    ws: WebSocket;
+    data: { agentId?: string; model: string; requestId?: string };
+  }) => void;
 }
 
 abstract class GenericClientManagerBase implements GenericClientManager {
@@ -645,6 +655,28 @@ abstract class GenericClientManagerBase implements GenericClientManager {
             data: (message.data as ChannelStatusRequestData | undefined) ?? {},
           });
           break;
+        case "models.list.get": {
+          const mlData = (message.data ?? {}) as { agentId?: string; requestId?: string };
+          this.onModelsListRequest?.({
+            chatId: state?.currentChatId,
+            ws,
+            data: mlData,
+          });
+          break;
+        }
+        case "model.switch": {
+          const msData = (message.data ?? {}) as { agentId?: string; model: string; requestId?: string };
+          if (!msData.model) {
+            this.logRejectedEvent(sourceId, message.type, "missing model");
+            break;
+          }
+          this.onModelSwitch?.({
+            chatId: state?.currentChatId,
+            ws,
+            data: msData,
+          });
+          break;
+        }
         case "typing": {
           const typing = message.data as TypingIndicatorData;
           const resolvedChatId = this.resolveTargetChatId({
@@ -1058,6 +1090,16 @@ abstract class GenericClientManagerBase implements GenericClientManager {
     ws: WebSocket;
     data: { threadId: string; query: string; requestId?: string };
     userId?: string;
+  }) => void;
+  onModelsListRequest?: (params: {
+    chatId?: string;
+    ws: WebSocket;
+    data: { agentId?: string; requestId?: string };
+  }) => void;
+  onModelSwitch?: (params: {
+    chatId?: string;
+    ws: WebSocket;
+    data: { agentId?: string; model: string; requestId?: string };
   }) => void;
 
   sendToClient(chatId: string, event: WSEvent): boolean {

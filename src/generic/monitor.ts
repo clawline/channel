@@ -30,7 +30,7 @@ import { handlePinMessage, handleUnpinMessage } from "./pins-stars.js";
 // D8: history.ts removed — local file is no longer source of truth.
 // history.sync / conversation.list WS frames now return empty;
 // clients fall back to gateway /api/messages/sync (Supabase).
-import { listGenericAgents, resolveGenericAgentId, resolveGenericAgentWorkspaceCandidates } from "./agents.js";
+import { listGenericAgents, resolveGenericAgentId, resolveGenericAgentModel, resolveGenericAgentWorkspaceCandidates } from "./agents.js";
 import { isGenericAgentAllowed } from "./auth.js";
 import { consumeStreamState, pruneExpiredStreams } from "./stream-state.js";
 import { createClawlineSessionBindingAdapter } from "./session-bindings.js";
@@ -472,6 +472,73 @@ async function monitorWebSocket(params: {
         conversations: [],
         timestamp: Date.now(),
       },
+    });
+  };
+
+  // Models list handler — returns available providers and models from OpenClaw config
+  wsManager.onModelsListRequest = ({ ws, data }) => {
+    (async () => {
+      try {
+        // @ts-expect-error — dynamic import of OpenClaw plugin-sdk export
+        const { buildModelsProviderData } = await import("openclaw/plugin-sdk/models-provider-runtime");
+        const providerData = await buildModelsProviderData(cfg, data.agentId || undefined);
+        const models: Record<string, string[]> = {};
+        for (const [provider, modelSet] of providerData.byProvider) {
+          models[provider] = [...modelSet];
+        }
+        const modelNames: Record<string, string> = {};
+        for (const [key, name] of providerData.modelNames) {
+          modelNames[key] = name;
+        }
+        wsManager.sendDirect(ws, {
+          type: "models.list",
+          data: {
+            requestId: data.requestId,
+            models,
+            modelNames,
+            defaultModel: `${providerData.resolvedDefault.provider}/${providerData.resolvedDefault.model}`,
+            currentModel: data.agentId ? resolveGenericAgentModel(cfg, data.agentId) : undefined,
+            timestamp: Date.now(),
+          },
+        });
+      } catch (err) {
+        error(`generic: error loading models list: ${String(err)}`);
+        wsManager.sendDirect(ws, {
+          type: "models.list",
+          data: {
+            requestId: data.requestId,
+            models: {},
+            modelNames: {},
+            error: String(err),
+            timestamp: Date.now(),
+          },
+        });
+      }
+    })();
+  };
+
+  // Model switch handler — sends /model command to the agent session
+  wsManager.onModelSwitch = ({ chatId, ws, data }) => {
+    if (!chatId) return;
+    const modelKey = data.model;
+    // Synthesize an inbound message with /model command
+    const synthMessage: InboundMessage = {
+      messageId: `synth-model-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      chatId,
+      senderId: chatId,
+      chatType: "direct",
+      messageType: "text",
+      content: `/model ${modelKey}`,
+      timestamp: Date.now(),
+      ...(data.agentId ? { agentId: data.agentId } : {}),
+    };
+    handleGenericMessage({
+      cfg,
+      message: synthMessage,
+      runtime,
+      chatHistories,
+    }).catch((err) => {
+      error(`generic: model switch error: ${String(err)}`);
     });
   };
 
