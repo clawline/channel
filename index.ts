@@ -179,11 +179,14 @@ export default defineChannelPluginEntry({
   setRuntime: setGenericRuntime,
   registerFull(api) {
     // Tool call events → broadcast to connected clients
-    api.on("before_tool_call", (event: ToolCallHookEvent) => {
-      broadcastToolCallEvent("tool.start", event);
+    // OpenClaw passes (event, ctx) — agentId lives in ctx, not event
+    api.on("before_tool_call", (event: ToolCallHookEvent, ctx?: Record<string, unknown>) => {
+      const ctxAgentId = typeof ctx?.agentId === 'string' ? ctx.agentId : undefined;
+      broadcastToolCallEvent("tool.start", { ...event, agentId: event.agentId ?? ctxAgentId });
     });
-    api.on("after_tool_call", (event: ToolCallHookEvent) => {
-      broadcastToolCallEvent("tool.end", event);
+    api.on("after_tool_call", (event: ToolCallHookEvent, ctx?: Record<string, unknown>) => {
+      const ctxAgentId = typeof ctx?.agentId === 'string' ? ctx.agentId : undefined;
+      broadcastToolCallEvent("tool.end", { ...event, agentId: event.agentId ?? ctxAgentId });
     });
   },
 });

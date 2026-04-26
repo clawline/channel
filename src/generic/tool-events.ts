@@ -125,7 +125,7 @@ export function broadcastToolCallEvent(
     const result = hookEvent.result;
     if (result != null) {
       const raw = typeof result === "string" ? result : JSON.stringify(result);
-      payload.resultSummary = raw.length > 300 ? raw.slice(0, 300) + "…" : raw;
+      payload.resultSummary = raw.length > 1000 ? raw.slice(0, 1000) + "…" : raw;
     }
   }
 
@@ -134,19 +134,20 @@ export function broadcastToolCallEvent(
     data: payload,
   };
 
-  // S14: agent-isolated delivery — never broadcast without agentId
+  // agentId is mandatory — OpenClaw always passes it via ctx, plugin extracts
+  // it in registerFull(). Missing agentId means the wiring is broken upstream.
   const agentId = hookEvent.agentId;
   if (!agentId) {
-    // No agentId means we can't isolate; drop to avoid cross-agent leakage
-    console.debug?.(`[clawline] tool event dropped (no agentId): ${eventType}`);
+    console.warn(`[clawline] tool event dropped (missing agentId, upstream wiring bug?): ${eventType}`);
     return;
   }
 
+  // chatId is optional — when absent we broadcast to all clients connected to
+  // this channel; the client-side agentId filter in ChatRoom prevents leakage.
   const chatId = hookEvent.chatId;
   if (chatId) {
     wsManager.sendToClient(chatId, event);
   } else {
-    // Deliver to all connected clients, relying on sendToClient's agent isolation
     for (const clientId of wsManager.getConnectedClients()) {
       wsManager.sendToClient(clientId, event);
     }
