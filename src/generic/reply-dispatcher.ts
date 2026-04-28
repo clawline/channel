@@ -46,9 +46,18 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
   });
   const genericCfg = cfg.channels?.["clawline"] as GenericChannelConfig | undefined;
 
+  // Phase tracking for thinking/answer split. SDK ReplyPayload only carries one
+  // accumulating `text` — we slice it by phase windows so the client can route
+  // thinking chunks to the orange box and answer chunks to the bubble cleanly.
+  let isThinking = false;
+  let thinkingEndAt: number | null = null;
+  let lastSeenCumulativeLen = 0;
+
   const typingCallbacks = createTypingCallbacks({
     start: async () => {
       params.runtime.log?.(`generic: thinking started`);
+      isThinking = true;
+      thinkingEndAt = null;
       await sendThinkingIndicator({
         cfg,
         to: `chat:${chatId}`,
@@ -59,6 +68,8 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
     },
     stop: async () => {
       params.runtime.log?.(`generic: thinking stopped`);
+      thinkingEndAt = lastSeenCumulativeLen;
+      isThinking = false;
       await sendThinkingIndicator({
         cfg,
         to: `chat:${chatId}`,
@@ -176,15 +187,34 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
   if (streamingEnabled) {
     params.runtime.log?.(`generic: streaming enabled, injecting onPartialReply for chatId=${chatId}`);
     (replyOptions as any).onPartialReply = (payload: ReplyPayload) => {
-      let delta = payload.text;
-      if (!delta) return;
+      let cumulative = payload.text;
+      if (!cumulative) return;
       // Strip DELEGATE tags from streaming preview to avoid raw tags flashing
-      delta = stripDelegateTags(delta);
-      if (!delta.trim()) return;
+      cumulative = stripDelegateTags(cumulative);
+      if (!cumulative) return;
+
+      lastSeenCumulativeLen = cumulative.length;
+
+      let phase: "thinking" | "answer";
+      let textToSend: string;
+      if (isThinking) {
+        phase = "thinking";
+        textToSend = cumulative;
+      } else if (thinkingEndAt !== null) {
+        phase = "answer";
+        textToSend = cumulative.slice(thinkingEndAt).replace(/^\n+/, "");
+        if (!textToSend.trim()) return;
+      } else {
+        phase = "answer";
+        textToSend = cumulative;
+        if (!textToSend.trim()) return;
+      }
+
       sendStreamDelta({
         cfg,
         to: `chat:${chatId}`,
-        text: delta,
+        text: textToSend,
+        phase,
         agentId,
         threadId: resolveThreadId(),
       }).catch((err) => {
