@@ -64,6 +64,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         eventType: "thinking.start",
         agentId,
         threadId: resolveThreadId(),
+        replyToMessageId,
       });
     },
     stop: async () => {
@@ -76,6 +77,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         eventType: "thinking.end",
         agentId,
         threadId: resolveThreadId(),
+        replyToMessageId,
       });
     },
     onStartError: (err) => {
@@ -159,6 +161,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
             done: true,
             agentId,
             threadId: resolvedThreadId,
+            replyToMessageId,
           });
         }
 
@@ -217,6 +220,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         phase,
         agentId,
         threadId: resolveThreadId(),
+        replyToMessageId,
       }).catch((err) => {
         params.runtime.log?.(`generic: stream delta send error: ${err}`);
       });

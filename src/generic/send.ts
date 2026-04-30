@@ -1,5 +1,6 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 import { access, readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import type { GenericChannelConfig, GenericSendResult, OutboundMessage, WSEventType } from "./types.js";
 import { getGenericWSManager } from "./client.js";
 // D8: appendOutboundHistoryMessage removed — gateway is source of truth for outbound persistence.
@@ -156,7 +157,7 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
   }
 
   const target = normalizeTarget(to);
-  const messageId = `msg-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const messageId = `msg-${randomUUID()}`;
 
   const resolvedMedia = await resolveOutboundMediaUrl({
     mediaUrl,
@@ -262,8 +263,16 @@ export async function sendThinkingIndicator(params: {
   content?: string;
   agentId?: string;
   threadId?: string;
+  /**
+   * P0-3 fix: replyTo = inbound messageId that triggered this stream. Gateway
+   * uses it to route the frame to a single owner sink (the SSE caller that
+   * sent that inbound) instead of broadcasting to every concurrent sink on
+   * the same session — the broadcast was leaking thinking/delta between
+   * concurrent /api/chat callers on the same (channel, chat, agent).
+   */
+  replyToMessageId?: string;
 }): Promise<void> {
-  const { cfg, to, eventType, content = "", agentId, threadId } = params;
+  const { cfg, to, eventType, content = "", agentId, threadId, replyToMessageId } = params;
   const genericCfg = cfg.channels?.["clawline"] as GenericChannelConfig | undefined;
 
   if (!genericCfg) {
@@ -283,6 +292,7 @@ export async function sendThinkingIndicator(params: {
           agentId,
           timestamp: Date.now(),
           ...(threadId ? { threadId } : {}),
+          ...(replyToMessageId ? { replyTo: replyToMessageId } : {}),
         },
       });
     }
@@ -329,8 +339,10 @@ export async function sendStreamDelta(params: {
   agentId?: string;
   threadId?: string;
   phase?: "thinking" | "answer";
+  /** P0-3 fix: see sendThinkingIndicator. */
+  replyToMessageId?: string;
 }): Promise<void> {
-  const { cfg, to, text, done = false, agentId, threadId, phase } = params;
+  const { cfg, to, text, done = false, agentId, threadId, phase, replyToMessageId } = params;
   const genericCfg = cfg.channels?.["clawline"] as GenericChannelConfig | undefined;
 
   if (!genericCfg) {
@@ -357,6 +369,7 @@ export async function sendStreamDelta(params: {
           ...(agentId ? { agentId } : {}),
           ...(threadId ? { threadId } : {}),
           ...(phase ? { phase } : {}),
+          ...(replyToMessageId ? { replyTo: replyToMessageId } : {}),
         },
       });
     }
