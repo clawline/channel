@@ -583,29 +583,12 @@ abstract class GenericClientManagerBase implements GenericClientManager {
             inbound.agentId = selectedAgentId;
           }
           this.onMessageReceive?.(inbound);
-
-          // Cross-client echo: broadcast the user message to other clients
-          // subscribed to the same chat so multi-device users see their own
-          // sends across web/desktop. The sending ws is excluded so the
-          // sender doesn't receive its own message back.
-          this.broadcastToChatExcept(ws, inbound.chatId, {
-            type: "message.send",
-            data: {
-              messageId: inbound.messageId,
-              chatId: inbound.chatId,
-              agentId: inbound.agentId,
-              senderId: inbound.senderId,
-              content: inbound.content,
-              contentType: inbound.messageType,
-              mediaUrl: inbound.mediaUrl,
-              mimeType: inbound.mimeType,
-              parentId: inbound.parentId,
-              threadId: inbound.threadId,
-              timestamp: inbound.timestamp ?? Date.now(),
-              direction: "inbound",
-              echo: true,
-            },
-          });
+          // Cross-client echo of the user's own message to siblings is
+          // performed by gateway (fanOut after inbound persistence). Channel
+          // must NOT re-broadcast it here as a `message.send`, otherwise it
+          // arrives at gateway as `relay.server.event` and gets persisted as
+          // an outbound row carrying the user's text — corrupting cl_messages
+          // and the rendered conversation.
           break;
         }
         case "history.get": {
@@ -1153,21 +1136,6 @@ abstract class GenericClientManagerBase implements GenericClientManager {
     }
 
     return sent;
-  }
-
-  /**
-   * Send an event to all clients subscribed to `chatId`, except `exceptWs`.
-   * Used to echo a sender's own message to their other devices/tabs.
-   */
-  broadcastToChatExcept(exceptWs: WebSocket, chatId: string, event: WSEvent): void {
-    const clients = this.clients.get(chatId);
-    if (!clients || clients.size === 0) return;
-
-    for (const ws of clients) {
-      if (ws === exceptWs) continue;
-      if (!this.isHandleOpen(ws)) continue;
-      this.sendEvent(ws, event);
-    }
   }
 
   /**
