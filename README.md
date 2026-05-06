@@ -1,3 +1,5 @@
+> ⚠️ **DEPRECATED** — moved to https://github.com/clawline/platform/tree/main/apps/channel on 2026-05-06
+
 
 # Clawline
 
