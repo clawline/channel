@@ -109,6 +109,25 @@ openclaw config set channels.clawline.wsPort 8080
 
 📖 **See [docs/README.md](docs/README.md) for the current documentation set.**
 
+### Related X/Twitter workflows
+
+Clawline stays responsible for WebSocket, relay, webhook, H5, app, and mini
+program messaging into OpenClaw. When the same workspace also needs X/Twitter
+research or automation, install
+[TweetClaw](https://github.com/Xquik-dev/tweetclaw) as a separate OpenClaw
+plugin:
+
+```bash
+openclaw plugins install clawhub:@xquik/tweetclaw
+```
+
+TweetClaw provides 2 structured agent tools for searching, reading, extracting,
+monitoring, and approval-gated X actions. Route findings and approval requests
+into Clawline chats while keeping the 2 plugins' configuration separate.
+
+Xquik is an independent third-party service. Not affiliated with X Corp.
+"Twitter" and "X" are trademarks of X Corp.
+
 ### Updating the Plugin
 
 #### Method 1: Git clone install (recommended for development)
@@ -544,6 +563,24 @@ openclaw config set channels.clawline.wsPort 8080
 - **消息置顶与收藏**：置顶重要消息（最多 3 条）和收藏喜欢的消息
 
 📖 **当前文档入口见 [docs/README.md](docs/README.md)。**
+
+### 相关 X/Twitter 工作流
+
+Clawline 继续负责 WebSocket、relay、webhook、H5、App 和小程序消息接入
+OpenClaw。若同一个工作区还需要 X/Twitter 研究或自动化，可以把
+[TweetClaw](https://github.com/Xquik-dev/tweetclaw) 作为独立 OpenClaw
+插件安装：
+
+```bash
+openclaw plugins install clawhub:@xquik/tweetclaw
+```
+
+TweetClaw 提供 2 个结构化 agent tools，用于搜索、读取、提取、监控和需要
+审批的 X 操作。可将结果和审批请求路由到 Clawline 聊天，同时保持 2 个插件的
+配置相互独立。
+
+Xquik is an independent third-party service. Not affiliated with X Corp.
+"Twitter" and "X" are trademarks of X Corp.
 
 ### 更新插件
 
