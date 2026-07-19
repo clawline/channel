@@ -190,7 +190,8 @@ channels:
 配套 relay-gateway：
 
 ```bash
-cd src/relay-gateway
+git clone https://github.com/clawline/gateway.git
+cd gateway
 npm install
 RELAY_PORT=19080 \\
 RELAY_CHANNELS_JSON='{"demo":{"secret":"replace-me"}}' \\
